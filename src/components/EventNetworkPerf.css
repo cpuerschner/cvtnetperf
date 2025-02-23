@@ -1,0 +1,119 @@
+/* src/components/EventNetworkPerf.css */
+.event-network-perf {
+    font-family: Arial, sans-serif;
+    max-width: 600px;
+    margin: 20px auto;
+    padding: 20px;
+    text-align: center;
+  }
+  
+  #apiForm {
+    margin: 30px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  #apiUrl {
+    width: 60%;
+    padding: 8px;
+    margin: 0;
+  }
+  
+  #intervalInput {
+    width: 50px;
+    padding: 8px;
+    margin: 0;
+  }
+  
+  #gaugeContainer {
+    margin: 30px 0;
+    position: relative;
+    display: inline-block;
+    padding: 15px;
+    padding-bottom: 35px;
+    border: 3px solid #333;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
+  
+  #info {
+    margin-top: 10px;
+  }
+  
+  .timestamp {
+    color: #666;
+    font-size: 0.9em;
+  }
+  
+  .error {
+    color: #d32f2f;
+  }
+  
+  #responseTime {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-weight: bold;
+    font-size: 1.2em;
+    color: #333;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 2px 8px;
+    border-radius: 12px;
+  }
+  
+  #legend {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    padding: 10px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  
+  .legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid #333;
+    flex-shrink: 0;
+  }
+  
+  .legend-label {
+    font-size: 14px;
+    color: #333;
+  }
+  
+  #startButton {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background: linear-gradient(to bottom, #4CAF50, #45a049);
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  
+  #startButton:hover {
+    background: linear-gradient(to bottom, #45a049, #4CAF50);
+  }
+  
+  #gaugeBackground {
+    position: absolute;
+  }
+  
+  #gaugeForeground {
+    position: relative;
+  }
