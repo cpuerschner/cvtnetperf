@@ -1,104 +1,149 @@
 /* src/components/Gauge.css */
 .gauge-container {
-    margin: 1rem;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    max-width: 320px; /* Slightly wider for legend */
+  margin: 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 320px;
+  position: relative;
+}
+
+.gauge {
+  position: relative;
+  display: inline-block;
+  padding: 1rem;
+  padding-bottom: 3rem; /* Increased to accommodate legend */
+  border: 3px solid #333;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  width: 300px;
+  height: 200px;
+  overflow: visible;
+}
+
+.gauge-value {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-weight: 500;
+  font-size: 1.2rem;
+  color: #333;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  z-index: 10;
+}
+
+.gauge-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
+.gauge-pivot {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #444;
+  border: 1px solid #333;
+  border-radius: 50%;
+  top: 154px;
+  left: 144px;
+  z-index: 3;
+}
+
+.gauge-needle {
+  position: absolute;
+  width: 120px;
+  height: 6px;
+  background: linear-gradient(to right, #666, #000);
+  top: 157px;
+  left: 150px;
+  transform-origin: left center;
+  transition: transform 0.5s ease;
+  transform: rotate(-180deg); /* Start at -180° (down/left) */
+  z-index: 2;
+}
+
+.gauge-needle::after {
+  content: '';
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid #000;
+  border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+}
+
+.gauge-legend {
+  position: relative;
+  background: #fff;
+  border: 1px solid red; /* Temporary debug border */
+  border-radius: 8px;
+  padding: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  text-align: left;
+  width: 100%;
+  margin-top: 1rem; /* Increased spacing */
+  z-index: 20; /* Even higher z-index */
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.2rem 0;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid #333;
+  flex-shrink: 0;
+}
+
+.legend-label {
+  font-size: 0.75rem;
+  color: #333;
+}
+
+h2 {
+  font-size: 1.5rem;
+  margin: 0.75rem 0;
+  font-weight: 500;
+}
+
+/* Tablet responsiveness */
+@media (max-width: 1024px) {
+  .gauge-container {
+    max-width: 280px;
   }
-  
+
   .gauge {
-    position: relative;
-    display: inline-block;
-    padding: 1rem;
+    padding: 0.75rem;
     padding-bottom: 2.5rem;
-    border: 3px solid #333;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
   }
-  
+
   .gauge-value {
-    position: absolute;
-    bottom: 0.5rem;
-    left: 50%;
-    transform: translateX(-50%);
-    font-weight: 500;
-    font-size: 1.2rem;
-    color: #333;
-    background: rgba(255, 255, 255, 0.8);
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
+    font-size: 1rem;
   }
-  
-  .gauge-background {
-    position: absolute;
-  }
-  
-  .gauge-foreground {
-    position: relative;
-  }
-  
-  .gauge-legend {
-    background: #fff;
-    border-radius: 8px;
-    padding: 0.5rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    text-align: left;
-    width: 100%;
-    margin-top: 0.25rem; /* Reduced margin */
-  }
-  
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem; /* Smaller gap */
-    margin: 0.2rem 0; /* Reduced spacing */
-  }
-  
-  .legend-color {
-    width: 12px; /* Smaller circle */
-    height: 12px;
-    border-radius: 50%;
-    border: 1px solid #333;
-    flex-shrink: 0;
-  }
-  
-  .legend-label {
-    font-size: 0.75rem; /* Smaller font */
-    color: #333;
-  }
-  
+
   h2 {
-    font-size: 1.5rem;
-    margin: 0.75rem 0;
-    font-weight: 500;
+    font-size: 1.25rem;
   }
-  
-  /* Tablet responsiveness */
-  @media (max-width: 1024px) {
-    .gauge-container {
-      max-width: 280px;
-    }
-  
-    .gauge {
-      padding: 0.75rem;
-      padding-bottom: 2rem;
-    }
-  
-    .gauge-value {
-      font-size: 1rem;
-    }
-  
-    h2 {
-      font-size: 1.25rem;
-    }
+}
+
+@media (max-width: 768px) {
+  .gauge-container {
+    max-width: 100%;
   }
-  
-  @media (max-width: 768px) {
-    .gauge-container {
-      max-width: 100%;
-    }
-  }
+}

@@ -5,17 +5,18 @@ import './EventNetworkPerf.css';
 
 const EventNetworkPerf = () => {
   const [apiUrl, setApiUrl] = useState('https://jsonplaceholder.typicode.com/posts/1');
-  const [intervalSeconds, setIntervalSeconds] = useState(3);
-  const [durationSeconds, setDurationSeconds] = useState(30);
-  const [responseTime, setResponseTime] = useState(0);
-  const [bandwidth, setBandwidth] = useState(0);
+  const [intervalSeconds, setIntervalSeconds] = useState(2);
+  const [durationSeconds, setDurationSeconds] = useState(6);
+  const [currentLatency, setCurrentLatency] = useState(0);
+  const [currentBandwidth, setCurrentBandwidth] = useState(0);
+  const [avgLatency, setAvgLatency] = useState(0);
+  const [avgBandwidth, setAvgBandwidth] = useState(0);
   const [maxBandwidth, setMaxBandwidth] = useState(null);
   const [status, setStatus] = useState('Enter an API URL, interval, and duration, then click "Start Monitoring"');
   const [heartbeats, setHeartbeats] = useState([]);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const monitoringIntervalRef = useRef(null);
   const startTimeRef = useRef(null);
-  const heartbeatCountRef = useRef(0); // New: Synchronous heartbeat counter
 
   const maxValueLatency = 250;
   const targetTime = 0.1;
@@ -48,14 +49,15 @@ const EventNetworkPerf = () => {
 
   const resetState = () => {
     setHeartbeats([]);
-    setResponseTime(0);
-    setBandwidth(0);
+    setCurrentLatency(0);
+    setCurrentBandwidth(0);
+    setAvgLatency(0);
+    setAvgBandwidth(0);
     setMaxBandwidth(null);
     setStatus('Enter an API URL, interval, and duration, then click "Start Monitoring"');
-    heartbeatCountRef.current = 0;
   };
 
-  const measureApiResponseTime = async (forceRecalculate = false) => {
+  const measureApiResponseTime = async (forceRecalculate = false, localHeartbeats = []) => {
     try {
       const startTime = performance.now();
       const response = await fetch(apiUrl, {
@@ -80,37 +82,38 @@ const EventNetworkPerf = () => {
       const bandwidthKBs = responseSize / timeInSeconds / 1024;
 
       const timestamp = new Date().toLocaleTimeString();
-      setResponseTime(responseTime);
-      setBandwidth(bandwidthKBs);
+      setCurrentLatency(responseTime);
+      setCurrentBandwidth(bandwidthKBs);
 
       if (forceRecalculate || !maxBandwidth) {
         const calculatedMaxBandwidth = (responseSize / targetTime / 1024) * 2;
         setMaxBandwidth(Math.max(calculatedMaxBandwidth, 1));
       }
 
-      setHeartbeats(prev => [
-        ...prev,
-        { timestamp, latency: responseTime, bandwidth: bandwidthKBs }
-      ]);
-      heartbeatCountRef.current += 1;
+      const newHeartbeat = { timestamp, latency: responseTime, bandwidth: bandwidthKBs };
+      localHeartbeats.push(newHeartbeat);
+      setHeartbeats(localHeartbeats);
+      console.log('Heartbeat Added:', newHeartbeat);
+      console.log('Current Heartbeats:', localHeartbeats);
 
       const elapsedSeconds = (Date.now() - startTimeRef.current) / 1000;
       const expectedHeartbeats = Math.floor(durationSeconds / intervalSeconds) + 1;
 
-      if (heartbeatCountRef.current >= expectedHeartbeats || elapsedSeconds >= durationSeconds) {
+      if (localHeartbeats.length >= expectedHeartbeats || elapsedSeconds >= durationSeconds) {
         clearInterval(monitoringIntervalRef.current);
         monitoringIntervalRef.current = null;
-
-        const totalHeartbeats = heartbeatCountRef.current;
-        const finalHeartbeats = [...heartbeats, { timestamp, latency: responseTime, bandwidth: bandwidthKBs }];
-        const avgLatency = finalHeartbeats.reduce((sum, hb) => sum + hb.latency, 0) / totalHeartbeats;
-        const avgBandwidth = finalHeartbeats.reduce((sum, hb) => sum + hb.bandwidth, 0) / totalHeartbeats;
-
-        setResponseTime(avgLatency);
-        setBandwidth(avgBandwidth);
-        setHeartbeats(finalHeartbeats);
         setIsMonitoring(false);
 
+        const totalHeartbeats = localHeartbeats.length;
+        const avgLatency = localHeartbeats.reduce((sum, hb) => sum + hb.latency, 0) / totalHeartbeats;
+        const avgBandwidth = localHeartbeats.reduce((sum, hb) => sum + hb.bandwidth, 0) / totalHeartbeats;
+
+        console.log('Final Heartbeats:', localHeartbeats);
+        console.log('Total Heartbeats:', totalHeartbeats);
+        console.log('Calculated Avg Latency:', avgLatency, 'Avg Bandwidth:', avgBandwidth);
+
+        setAvgLatency(avgLatency);
+        setAvgBandwidth(avgBandwidth);
         setStatus(`
           <div class="timestamp">Monitoring completed at: ${timestamp}</div>
           <div>URL: ${apiUrl}</div>
@@ -127,8 +130,10 @@ const EventNetworkPerf = () => {
           <div>URL: ${apiUrl}</div>
           <div>Interval: ${intervalSeconds} seconds</div>
           <div>Elapsed: ${elapsedSeconds.toFixed(1)} / ${durationSeconds} seconds</div>
-          <div>Heartbeats: ${heartbeatCountRef.current} / ${expectedHeartbeats}</div>
+          <div>Heartbeats: ${localHeartbeats.length} / ${expectedHeartbeats}</div>
         `);
+        // Pass the updated localHeartbeats to the next iteration
+        setTimeout(() => measureApiResponseTime(false, localHeartbeats), intervalSeconds * 1000);
       }
     } catch (error) {
       const timestamp = new Date().toLocaleTimeString();
@@ -136,31 +141,33 @@ const EventNetworkPerf = () => {
       if (errorMessage.includes('CORS')) {
         errorMessage += '<br><span class="error">Try a CORS-enabled API or use a proxy.</span>';
       }
-      setResponseTime(0);
-      setBandwidth(0);
-      setHeartbeats(prev => [
-        ...prev,
-        { timestamp, latency: 0, bandwidth: 0, error: errorMessage }
-      ]);
-      heartbeatCountRef.current += 1;
+      setCurrentLatency(0);
+      setCurrentBandwidth(0);
+
+      const newHeartbeat = { timestamp, latency: 0, bandwidth: 0, error: errorMessage };
+      localHeartbeats.push(newHeartbeat);
+      setHeartbeats(localHeartbeats);
+      console.log('Heartbeat Added (Error):', newHeartbeat);
+      console.log('Current Heartbeats (Error):', localHeartbeats);
 
       const elapsedSeconds = (Date.now() - startTimeRef.current) / 1000;
       const expectedHeartbeats = Math.floor(durationSeconds / intervalSeconds) + 1;
 
-      if (heartbeatCountRef.current >= expectedHeartbeats || elapsedSeconds >= durationSeconds) {
+      if (localHeartbeats.length >= expectedHeartbeats || elapsedSeconds >= durationSeconds) {
         clearInterval(monitoringIntervalRef.current);
         monitoringIntervalRef.current = null;
-
-        const totalHeartbeats = heartbeatCountRef.current;
-        const finalHeartbeats = [...heartbeats, { timestamp, latency: 0, bandwidth: 0, error: errorMessage }];
-        const avgLatency = finalHeartbeats.reduce((sum, hb) => sum + (hb.latency || 0), 0) / totalHeartbeats;
-        const avgBandwidth = finalHeartbeats.reduce((sum, hb) => sum + (hb.bandwidth || 0), 0) / totalHeartbeats;
-
-        setResponseTime(avgLatency);
-        setBandwidth(avgBandwidth);
-        setHeartbeats(finalHeartbeats);
         setIsMonitoring(false);
 
+        const totalHeartbeats = localHeartbeats.length;
+        const avgLatency = localHeartbeats.reduce((sum, hb) => sum + (hb.latency || 0), 0) / totalHeartbeats;
+        const avgBandwidth = localHeartbeats.reduce((sum, hb) => sum + (hb.bandwidth || 0), 0) / totalHeartbeats;
+
+        console.log('Final Heartbeats (Error):', localHeartbeats);
+        console.log('Total Heartbeats (Error):', totalHeartbeats);
+        console.log('Calculated Avg Latency (Error):', avgLatency, 'Avg Bandwidth (Error):', avgBandwidth);
+
+        setAvgLatency(avgLatency);
+        setAvgBandwidth(avgBandwidth);
         setStatus(`
           <div class="timestamp">Monitoring completed at: ${timestamp}</div>
           <div>URL: ${apiUrl}</div>
@@ -177,8 +184,9 @@ const EventNetworkPerf = () => {
           <div>URL: ${apiUrl}</div>
           <div>Interval: ${intervalSeconds} seconds</div>
           <div>Elapsed: ${elapsedSeconds.toFixed(1)} / ${durationSeconds} seconds</div>
-          <div>Heartbeats: ${heartbeatCountRef.current} / ${expectedHeartbeats}</div>
+          <div>Heartbeats: ${localHeartbeats.length} / ${expectedHeartbeats}</div>
         `);
+        setTimeout(() => measureApiResponseTime(false, localHeartbeats), intervalSeconds * 1000);
       }
     }
   };
@@ -206,12 +214,11 @@ const EventNetworkPerf = () => {
       return;
     }
 
-    resetState(); // Reset all state at start
+    resetState();
     setIsMonitoring(true);
     startTimeRef.current = Date.now();
 
-    measureApiResponseTime(true); // Force recalculation on initial run
-    monitoringIntervalRef.current = setInterval(() => measureApiResponseTime(false), interval * 1000);
+    measureApiResponseTime(true, []);
   };
 
   useEffect(() => {
@@ -219,6 +226,9 @@ const EventNetworkPerf = () => {
       if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
     };
   }, []);
+
+  const displayLatency = isMonitoring ? currentLatency : avgLatency;
+  const displayBandwidth = isMonitoring ? currentBandwidth : avgBandwidth;
 
   return (
     <div className="event-network-perf">
@@ -253,8 +263,8 @@ const EventNetworkPerf = () => {
         <button type="submit" id="startButton">Start Monitoring</button>
       </form>
       <div className="gauges-container">
-        <Gauge value={responseTime} maxValue={maxValueLatency} segments={latencySegments} title="Latency" />
-        <Gauge value={bandwidth} maxValue={maxBandwidth || 10} segments={bandwidthSegments} title="Bandwidth (KB/s)" />
+        <Gauge value={displayLatency} maxValue={maxValueLatency} segments={latencySegments} title="Latency" />
+        <Gauge value={displayBandwidth} maxValue={maxBandwidth || 10} segments={bandwidthSegments} title="Bandwidth (KB/s)" />
       </div>
       <div id="info" dangerouslySetInnerHTML={{ __html: status }}></div>
       {heartbeats.length > 0 && (
