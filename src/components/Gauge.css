@@ -1,0 +1,104 @@
+/* src/components/Gauge.css */
+.gauge-container {
+    margin: 1rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 320px; /* Slightly wider for legend */
+  }
+  
+  .gauge {
+    position: relative;
+    display: inline-block;
+    padding: 1rem;
+    padding-bottom: 2.5rem;
+    border: 3px solid #333;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
+  
+  .gauge-value {
+    position: absolute;
+    bottom: 0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-weight: 500;
+    font-size: 1.2rem;
+    color: #333;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+  }
+  
+  .gauge-background {
+    position: absolute;
+  }
+  
+  .gauge-foreground {
+    position: relative;
+  }
+  
+  .gauge-legend {
+    background: #fff;
+    border-radius: 8px;
+    padding: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: left;
+    width: 100%;
+    margin-top: 0.25rem; /* Reduced margin */
+  }
+  
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem; /* Smaller gap */
+    margin: 0.2rem 0; /* Reduced spacing */
+  }
+  
+  .legend-color {
+    width: 12px; /* Smaller circle */
+    height: 12px;
+    border-radius: 50%;
+    border: 1px solid #333;
+    flex-shrink: 0;
+  }
+  
+  .legend-label {
+    font-size: 0.75rem; /* Smaller font */
+    color: #333;
+  }
+  
+  h2 {
+    font-size: 1.5rem;
+    margin: 0.75rem 0;
+    font-weight: 500;
+  }
+  
+  /* Tablet responsiveness */
+  @media (max-width: 1024px) {
+    .gauge-container {
+      max-width: 280px;
+    }
+  
+    .gauge {
+      padding: 0.75rem;
+      padding-bottom: 2rem;
+    }
+  
+    .gauge-value {
+      font-size: 1rem;
+    }
+  
+    h2 {
+      font-size: 1.25rem;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .gauge-container {
+      max-width: 100%;
+    }
+  }

@@ -1,94 +1,61 @@
 // src/components/EventNetworkPerf.js
 import React, { useState, useEffect, useRef } from 'react';
+import Gauge from './Gauge';
 import './EventNetworkPerf.css';
 
 const EventNetworkPerf = () => {
   const [apiUrl, setApiUrl] = useState('https://jsonplaceholder.typicode.com/posts/1');
-  const [intervalSeconds, setIntervalSeconds] = useState(5);
+  const [intervalSeconds, setIntervalSeconds] = useState(3);
+  const [durationSeconds, setDurationSeconds] = useState(30);
   const [responseTime, setResponseTime] = useState(0);
-  const [status, setStatus] = useState('Enter an API URL and interval, then click "Start Monitoring"');
-  const bgCanvasRef = useRef(null);
-  const fgCanvasRef = useRef(null);
+  const [bandwidth, setBandwidth] = useState(0);
+  const [maxBandwidth, setMaxBandwidth] = useState(null);
+  const [status, setStatus] = useState('Enter an API URL, interval, and duration, then click "Start Monitoring"');
+  const [heartbeats, setHeartbeats] = useState([]);
+  const [isMonitoring, setIsMonitoring] = useState(false);
   const monitoringIntervalRef = useRef(null);
+  const startTimeRef = useRef(null);
+  const heartbeatCountRef = useRef(0); // New: Synchronous heartbeat counter
 
-  const maxValue = 250;
-  const centerX = 150; // Half of canvas width (300)
-  const centerY = 160; // 80% of canvas height (200)
-  const radius = 120;  // 40% of canvas width
+  const maxValueLatency = 250;
+  const targetTime = 0.1;
 
-  // Draw static background on mount
-  useEffect(() => {
-    const bgCtx = bgCanvasRef.current.getContext('2d');
-    bgCtx.beginPath();
-    bgCtx.arc(centerX, centerY, radius, Math.PI, 2 * Math.PI, false);
-    bgCtx.lineWidth = 20;
-    bgCtx.strokeStyle = '#e0e0e0';
-    bgCtx.stroke();
+  const latencySegments = [
+    { max: 50, color: '#006400', label: 'Great (0-50ms)' },
+    { max: 100, color: '#4CAF50', label: 'Good (50-100ms)' },
+    { max: 150, color: '#FFC107', label: 'Moderate (100-150ms)' },
+    { max: 200, color: '#FF5722', label: 'Sub Par (150-200ms)' },
+    { max: 250, color: '#D32F2F', label: 'Poor (200-250ms)' }
+  ];
 
-    const zones = [
-      { max: 50, color: '#006400', label: 'Great (0-50ms)' },
-      { max: 100, color: '#4CAF50', label: 'Good (50-100ms)' },
-      { max: 150, color: '#FFC107', label: 'Moderate (100-150ms)' },
-      { max: 200, color: '#FF5722', label: 'Sub Par (150-200ms)' },
-      { max: 250, color: '#D32F2F', label: 'Poor (200-250ms)' }
-    ];
+  const bandwidthSegments = maxBandwidth
+    ? [
+        { max: maxBandwidth * 0.2, color: '#D32F2F', label: `Poor (0-${(maxBandwidth * 0.2).toFixed(1)} KB/s)` },
+        { max: maxBandwidth * 0.4, color: '#FF5722', label: `Sub Par (${(maxBandwidth * 0.2).toFixed(1)}-${(maxBandwidth * 0.4).toFixed(1)} KB/s)` },
+        { max: maxBandwidth * 0.6, color: '#FFC107', label: `Moderate (${(maxBandwidth * 0.4).toFixed(1)}-${(maxBandwidth * 0.6).toFixed(1)} KB/s)` },
+        { max: maxBandwidth * 0.8, color: '#4CAF50', label: `Good (${(maxBandwidth * 0.6).toFixed(1)}-${(maxBandwidth * 0.8).toFixed(1)} KB/s)` },
+        { max: maxBandwidth, color: '#006400', label: `Great (${(maxBandwidth * 0.8).toFixed(1)}-${maxBandwidth.toFixed(1)} KB/s)` }
+      ]
+    : [];
 
-    let previousAngle = Math.PI;
-    zones.forEach(zone => {
-      const zonePercentage = Math.min(zone.max / maxValue, 1);
-      const endAngle = Math.PI + (zonePercentage * Math.PI);
-      bgCtx.beginPath();
-      bgCtx.arc(centerX, centerY, radius, previousAngle, endAngle, false);
-      bgCtx.strokeStyle = zone.color;
-      bgCtx.stroke();
-      previousAngle = endAngle;
-    });
-
-    drawNeedle(0); // Initial needle position
-  }, []);
-
-  // Function to update the needle
-  const drawNeedle = (value) => {
-    const fgCtx = fgCanvasRef.current.getContext('2d');
-    fgCtx.clearRect(0, 0, 300, 200);
-
-    const percentage = Math.min(value / maxValue, 1);
-    const needleAngle = Math.PI + (percentage * Math.PI);
-    const needleX = centerX + Math.cos(needleAngle) * radius;
-    const needleY = centerY + Math.sin(needleAngle) * radius;
-
-    fgCtx.beginPath();
-    fgCtx.moveTo(centerX, centerY);
-    fgCtx.lineTo(needleX, needleY);
-    const baseWidth = 8;
-    const perpAngle = needleAngle + Math.PI / 2;
-    const baseX1 = centerX + Math.cos(perpAngle) * baseWidth;
-    const baseY1 = centerY + Math.sin(perpAngle) * baseWidth;
-    const baseX2 = centerX - Math.cos(perpAngle) * baseWidth;
-    const baseY2 = centerY - Math.sin(perpAngle) * baseWidth;
-    fgCtx.lineTo(baseX1, baseY1);
-    fgCtx.lineTo(baseX2, baseY2);
-    fgCtx.closePath();
-
-    const gradient = fgCtx.createLinearGradient(centerX, centerY, needleX, needleY);
-    gradient.addColorStop(0, '#666');
-    gradient.addColorStop(1, '#000');
-    fgCtx.fillStyle = gradient;
-    fgCtx.fill();
-    fgCtx.lineWidth = 1;
-    fgCtx.strokeStyle = '#333';
-    fgCtx.stroke();
-
-    fgCtx.beginPath();
-    fgCtx.arc(centerX, centerY, 12, 0, 2 * Math.PI);
-    fgCtx.fillStyle = '#444';
-    fgCtx.fill();
-    fgCtx.lineWidth = 1;
-    fgCtx.strokeStyle = '#333';
-    fgCtx.stroke();
+  const getSegmentColor = (value, segments) => {
+    if (!segments || segments.length === 0) return '#666';
+    for (const segment of segments) {
+      if (value <= segment.max) return segment.color;
+    }
+    return segments[segments.length - 1].color;
   };
 
-  const measureApiResponseTime = async () => {
+  const resetState = () => {
+    setHeartbeats([]);
+    setResponseTime(0);
+    setBandwidth(0);
+    setMaxBandwidth(null);
+    setStatus('Enter an API URL, interval, and duration, then click "Start Monitoring"');
+    heartbeatCountRef.current = 0;
+  };
+
+  const measureApiResponseTime = async (forceRecalculate = false) => {
     try {
       const startTime = performance.now();
       const response = await fetch(apiUrl, {
@@ -100,22 +67,69 @@ const EventNetworkPerf = () => {
       });
 
       const endTime = performance.now();
-      const responseTime = (endTime - startTime).toFixed(2);
+      const responseTime = endTime - startTime;
 
       if (!response.ok) {
         if (response.status === 0) throw new Error('CORS preflight request failed');
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
+      const responseBody = await response.json();
+      const responseSize = new TextEncoder().encode(JSON.stringify(responseBody)).length;
+      const timeInSeconds = responseTime / 1000;
+      const bandwidthKBs = responseSize / timeInSeconds / 1024;
+
       const timestamp = new Date().toLocaleTimeString();
       setResponseTime(responseTime);
-      drawNeedle(responseTime);
-      setStatus(`
-        <div class="timestamp">Last measured: ${timestamp}</div>
-        <div>Status: Success</div>
-        <div>URL: ${apiUrl}</div>
-        <div>Interval: ${intervalSeconds} seconds</div>
-      `);
+      setBandwidth(bandwidthKBs);
+
+      if (forceRecalculate || !maxBandwidth) {
+        const calculatedMaxBandwidth = (responseSize / targetTime / 1024) * 2;
+        setMaxBandwidth(Math.max(calculatedMaxBandwidth, 1));
+      }
+
+      setHeartbeats(prev => [
+        ...prev,
+        { timestamp, latency: responseTime, bandwidth: bandwidthKBs }
+      ]);
+      heartbeatCountRef.current += 1;
+
+      const elapsedSeconds = (Date.now() - startTimeRef.current) / 1000;
+      const expectedHeartbeats = Math.floor(durationSeconds / intervalSeconds) + 1;
+
+      if (heartbeatCountRef.current >= expectedHeartbeats || elapsedSeconds >= durationSeconds) {
+        clearInterval(monitoringIntervalRef.current);
+        monitoringIntervalRef.current = null;
+
+        const totalHeartbeats = heartbeatCountRef.current;
+        const finalHeartbeats = [...heartbeats, { timestamp, latency: responseTime, bandwidth: bandwidthKBs }];
+        const avgLatency = finalHeartbeats.reduce((sum, hb) => sum + hb.latency, 0) / totalHeartbeats;
+        const avgBandwidth = finalHeartbeats.reduce((sum, hb) => sum + hb.bandwidth, 0) / totalHeartbeats;
+
+        setResponseTime(avgLatency);
+        setBandwidth(avgBandwidth);
+        setHeartbeats(finalHeartbeats);
+        setIsMonitoring(false);
+
+        setStatus(`
+          <div class="timestamp">Monitoring completed at: ${timestamp}</div>
+          <div>URL: ${apiUrl}</div>
+          <div>Interval: ${intervalSeconds} seconds</div>
+          <div>Duration: ${durationSeconds} seconds</div>
+          <div>Total Heartbeats: ${totalHeartbeats}</div>
+          <div>Average Latency: ${avgLatency.toFixed(2)} ms</div>
+          <div>Average Bandwidth: ${avgBandwidth.toFixed(2)} KB/s</div>
+        `);
+      } else {
+        setStatus(`
+          <div class="timestamp">Last measured: ${timestamp}</div>
+          <div>Status: Success</div>
+          <div>URL: ${apiUrl}</div>
+          <div>Interval: ${intervalSeconds} seconds</div>
+          <div>Elapsed: ${elapsedSeconds.toFixed(1)} / ${durationSeconds} seconds</div>
+          <div>Heartbeats: ${heartbeatCountRef.current} / ${expectedHeartbeats}</div>
+        `);
+      }
     } catch (error) {
       const timestamp = new Date().toLocaleTimeString();
       let errorMessage = error.message;
@@ -123,13 +137,49 @@ const EventNetworkPerf = () => {
         errorMessage += '<br><span class="error">Try a CORS-enabled API or use a proxy.</span>';
       }
       setResponseTime(0);
-      drawNeedle(0);
-      setStatus(`
-        <div class="error">Error: ${errorMessage}</div>
-        <div class="timestamp">Last attempted: ${timestamp}</div>
-        <div>URL: ${apiUrl}</div>
-        <div>Interval: ${intervalSeconds} seconds</div>
-      `);
+      setBandwidth(0);
+      setHeartbeats(prev => [
+        ...prev,
+        { timestamp, latency: 0, bandwidth: 0, error: errorMessage }
+      ]);
+      heartbeatCountRef.current += 1;
+
+      const elapsedSeconds = (Date.now() - startTimeRef.current) / 1000;
+      const expectedHeartbeats = Math.floor(durationSeconds / intervalSeconds) + 1;
+
+      if (heartbeatCountRef.current >= expectedHeartbeats || elapsedSeconds >= durationSeconds) {
+        clearInterval(monitoringIntervalRef.current);
+        monitoringIntervalRef.current = null;
+
+        const totalHeartbeats = heartbeatCountRef.current;
+        const finalHeartbeats = [...heartbeats, { timestamp, latency: 0, bandwidth: 0, error: errorMessage }];
+        const avgLatency = finalHeartbeats.reduce((sum, hb) => sum + (hb.latency || 0), 0) / totalHeartbeats;
+        const avgBandwidth = finalHeartbeats.reduce((sum, hb) => sum + (hb.bandwidth || 0), 0) / totalHeartbeats;
+
+        setResponseTime(avgLatency);
+        setBandwidth(avgBandwidth);
+        setHeartbeats(finalHeartbeats);
+        setIsMonitoring(false);
+
+        setStatus(`
+          <div class="timestamp">Monitoring completed at: ${timestamp}</div>
+          <div>URL: ${apiUrl}</div>
+          <div>Interval: ${intervalSeconds} seconds</div>
+          <div>Duration: ${durationSeconds} seconds</div>
+          <div>Total Heartbeats: ${totalHeartbeats}</div>
+          <div>Average Latency: ${avgLatency.toFixed(2)} ms</div>
+          <div>Average Bandwidth: ${avgBandwidth.toFixed(2)} KB/s</div>
+        `);
+      } else {
+        setStatus(`
+          <div class="error">Error: ${errorMessage}</div>
+          <div class="timestamp">Last attempted: ${timestamp}</div>
+          <div>URL: ${apiUrl}</div>
+          <div>Interval: ${intervalSeconds} seconds</div>
+          <div>Elapsed: ${elapsedSeconds.toFixed(1)} / ${durationSeconds} seconds</div>
+          <div>Heartbeats: ${heartbeatCountRef.current} / ${expectedHeartbeats}</div>
+        `);
+      }
     }
   };
 
@@ -150,11 +200,20 @@ const EventNetworkPerf = () => {
       return;
     }
 
-    measureApiResponseTime();
-    monitoringIntervalRef.current = setInterval(measureApiResponseTime, interval * 1000);
+    const duration = parseInt(durationSeconds);
+    if (isNaN(duration) || duration < interval) {
+      setStatus('<div class="error">Error: Duration must be at least the interval length</div>');
+      return;
+    }
+
+    resetState(); // Reset all state at start
+    setIsMonitoring(true);
+    startTimeRef.current = Date.now();
+
+    measureApiResponseTime(true); // Force recalculation on initial run
+    monitoringIntervalRef.current = setInterval(() => measureApiResponseTime(false), interval * 1000);
   };
 
-  // Cleanup interval on unmount
   useEffect(() => {
     return () => {
       if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
@@ -182,28 +241,52 @@ const EventNetworkPerf = () => {
           onChange={(e) => setIntervalSeconds(e.target.value)}
           title="Monitoring interval in seconds (1-10)"
         /> sec
+        <input
+          type="number"
+          id="durationInput"
+          min={intervalSeconds}
+          step="1"
+          value={durationSeconds}
+          onChange={(e) => setDurationSeconds(e.target.value)}
+          title="Monitoring duration in seconds"
+        /> sec
         <button type="submit" id="startButton">Start Monitoring</button>
       </form>
-      <div id="gaugeContainer">
-        <canvas id="gaugeBackground" width="300" height="200" ref={bgCanvasRef}></canvas>
-        <canvas id="gaugeForeground" width="300" height="200" ref={fgCanvasRef}></canvas>
-        <div id="responseTime">{responseTime === 0 ? '0.00 ms' : `${responseTime} ms`}</div>
-      </div>
-      <div id="legend">
-        {[
-          { color: '#006400', label: 'Great (0-50ms)' },
-          { color: '#4CAF50', label: 'Good (50-100ms)' },
-          { color: '#FFC107', label: 'Moderate (100-150ms)' },
-          { color: '#FF5722', label: 'Sub Par (150-200ms)' },
-          { color: '#D32F2F', label: 'Poor (200-250ms)' }
-        ].map((zone, index) => (
-          <div className="legend-item" key={index}>
-            <div className="legend-color" style={{ backgroundColor: zone.color }}></div>
-            <span className="legend-label">{zone.label}</span>
-          </div>
-        ))}
+      <div className="gauges-container">
+        <Gauge value={responseTime} maxValue={maxValueLatency} segments={latencySegments} title="Latency" />
+        <Gauge value={bandwidth} maxValue={maxBandwidth || 10} segments={bandwidthSegments} title="Bandwidth (KB/s)" />
       </div>
       <div id="info" dangerouslySetInnerHTML={{ __html: status }}></div>
+      {heartbeats.length > 0 && (
+        <div className="heartbeat-list">
+          <h3>Heartbeat Log</h3>
+          <ul>
+            {heartbeats.map((hb, index) => (
+              <li key={index} className="heartbeat-item">
+                <span className="heartbeat-timestamp">{hb.timestamp}</span>
+                {hb.error ? (
+                  <span className="heartbeat-error">{hb.error}</span>
+                ) : (
+                  <>
+                    <span
+                      className="heartbeat-latency"
+                      style={{ color: getSegmentColor(hb.latency, latencySegments) }}
+                    >
+                      Latency: {hb.latency.toFixed(2)} ms
+                    </span>
+                    <span
+                      className="heartbeat-bandwidth"
+                      style={{ color: getSegmentColor(hb.bandwidth, bandwidthSegments) }}
+                    >
+                      Bandwidth: {hb.bandwidth.toFixed(2)} KB/s
+                    </span>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };
