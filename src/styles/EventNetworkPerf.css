@@ -1,0 +1,43 @@
+/* src/styles/EventNetworkPerf.css */
+.event-network-perf {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+  font-family: Arial, sans-serif;
+}
+
+h1 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.gauges-container {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Tablet responsiveness */
+@media (max-width: 1024px) {
+  .gauges-container {
+    gap: 1rem;
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .event-network-perf {
+    padding: 0.5rem;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  .gauges-container {
+    flex-direction: column;
+    align-items: center;
+  }
+}

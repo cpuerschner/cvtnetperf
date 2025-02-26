@@ -1,32 +1,37 @@
 // src/components/EventNetworkPerf.js
 import React, { useState, useEffect, useRef } from 'react';
 import Gauge from './Gauge';
-import './EventNetworkPerf.css';
+import HeartbeatLog from './HeartbeatLog';
+import MonitoringForm from './MonitoringForm';
+import InfoPanel from './InfoPanel'; // Import the new component
+import '../styles/EventNetworkPerf.css';
+import { UAParser } from 'ua-parser-js';
 
 const EventNetworkPerf = () => {
   const [apiUrl, setApiUrl] = useState('https://jsonplaceholder.typicode.com/posts/1');
-  const [intervalSeconds, setIntervalSeconds] = useState(2);
-  const [durationSeconds, setDurationSeconds] = useState(6);
+  const [intervalSeconds, setIntervalSeconds] = useState(2); // Practical default: 2-second interval
+  const [durationSeconds, setDurationSeconds] = useState(30); // Practical default: 30-second duration
+  const [maxValueLatency, setMaxValueLatency] = useState(250); // Default max latency value
   const [currentLatency, setCurrentLatency] = useState(0);
   const [currentBandwidth, setCurrentBandwidth] = useState(0);
   const [avgLatency, setAvgLatency] = useState(0);
   const [avgBandwidth, setAvgBandwidth] = useState(0);
-  const [maxBandwidth, setMaxBandwidth] = useState(null); // Ensure it starts as null
+  const [maxBandwidth, setMaxBandwidth] = useState(null);
   const [status, setStatus] = useState('Enter an API URL, interval, and duration, then click "Start Monitoring"');
   const [heartbeats, setHeartbeats] = useState([]);
   const [isMonitoring, setIsMonitoring] = useState(false);
+  const [isInfoCollapsed, setIsInfoCollapsed] = useState(true);
   const monitoringIntervalRef = useRef(null);
   const startTimeRef = useRef(null);
 
-  const maxValueLatency = 250;
   const targetTime = 0.1;
 
   const latencySegments = [
-    { max: 50, color: '#006400', label: 'Great (0-50ms)' },
-    { max: 100, color: '#4CAF50', label: 'Good (50-100ms)' },
-    { max: 150, color: '#FFC107', label: 'Moderate (100-150ms)' },
-    { max: 200, color: '#FF5722', label: 'Sub Par (150-200ms)' },
-    { max: 250, color: '#D32F2F', label: 'Poor (200-250ms)' },
+    { max: maxValueLatency * 0.2, color: '#006400', label: 'Great (0-20%)' },
+    { max: maxValueLatency * 0.4, color: '#4CAF50', label: 'Good (20-40%)' },
+    { max: maxValueLatency * 0.6, color: '#FFC107', label: 'Moderate (40-60%)' },
+    { max: maxValueLatency * 0.8, color: '#FF5722', label: 'Sub Par (60-80%)' },
+    { max: maxValueLatency, color: '#D32F2F', label: 'Poor (80-100%)' },
   ];
 
   const bandwidthSegments = maxBandwidth
@@ -39,12 +44,30 @@ const EventNetworkPerf = () => {
       ]
     : [];
 
-  const getSegmentColor = (value, segments) => {
-    if (!segments || segments.length === 0) return '#666';
-    for (const segment of segments) {
-      if (value <= segment.max) return segment.color;
+  const getDeviceInfo = () => {
+    const parser = new UAParser();
+    const result = parser.getResult();
+    let deviceType = 'Unknown Device';
+    let os = 'Unknown OS';
+
+    if (/iPhone|iPad/i.test(navigator.userAgent)) {
+      deviceType = 'Mobile';
+      os = 'iOS';
+    } else if (/Android/i.test(navigator.userAgent)) {
+      deviceType = /Mobile/.test(navigator.userAgent) ? 'Mobile' : 'Tablet';
+      os = 'Android';
+    } else if (/Windows NT/i.test(navigator.userAgent)) {
+      deviceType = 'Desktop';
+      os = 'Windows';
+    } else if (/Mac OS X/i.test(navigator.userAgent)) {
+      deviceType = 'Desktop';
+      os = 'macOS';
+    } else if (/Linux/i.test(navigator.userAgent)) {
+      deviceType = 'Desktop';
+      os = 'Linux';
     }
-    return segments[segments.length - 1].color;
+
+    return `${deviceType} (${os})`;
   };
 
   const resetState = () => {
@@ -53,11 +76,67 @@ const EventNetworkPerf = () => {
     setCurrentBandwidth(0);
     setAvgLatency(0);
     setAvgBandwidth(0);
-    setMaxBandwidth(null); // Reset maxBandwidth to null
+    setMaxBandwidth(null);
     setStatus('Enter an API URL, interval, and duration, then click "Start Monitoring"');
   };
 
-  const measureApiResponseTime = async (forceRecalculate = false, localHeartbeats = []) => {
+  const startMonitoring = (newApiUrl, newIntervalSeconds, newDurationSeconds, newMaxValueLatency) => {
+    console.log('Starting monitoring with:', {
+      apiUrl: newApiUrl,
+      intervalSeconds: newIntervalSeconds,
+      durationSeconds: newDurationSeconds,
+      maxValueLatency: newMaxValueLatency,
+    });
+    setApiUrl(newApiUrl);
+    setIntervalSeconds(parseInt(newIntervalSeconds) || 2);
+    setDurationSeconds(parseInt(newDurationSeconds) || 30);
+    setMaxValueLatency(parseInt(newMaxValueLatency) || 250);
+
+    if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
+
+    try {
+      new URL(newApiUrl);
+    } catch (e) {
+      setStatus('<div class="error">Error: Invalid URL format</div>');
+      return;
+    }
+
+    const interval = parseInt(newIntervalSeconds) || 2;
+    const duration = parseInt(newDurationSeconds) || 30;
+    const latencyMax = parseInt(newMaxValueLatency) || 250;
+    if (isNaN(interval) || interval < 1 || interval > 10) {
+      setStatus('<div class="error">Error: Interval must be between 1 and 10 seconds</div>');
+      return;
+    }
+
+    if (isNaN(duration) || duration < interval) {
+      setStatus('<div class="error">Error: Duration must be at least the interval length</div>');
+      return;
+    }
+
+    if (isNaN(latencyMax) || latencyMax < 1 || latencyMax > 1000) {
+      setStatus('<div class="error">Error: Latency Max Value must be between 1 and 1000 ms</div>');
+      return;
+    }
+
+    resetState();
+    setIsMonitoring(true);
+    startTimeRef.current = Date.now();
+
+    measureApiResponseTime(true, [], interval, duration);
+  };
+
+  const measureApiResponseTime = async (forceRecalculate = false, localHeartbeats = [], interval, duration) => {
+    console.log('Measuring with params:', {
+      apiUrl,
+      interval,
+      duration,
+    });
+    if (interval <= 0 || duration <= 0) {
+      console.error('Invalid interval or duration detected:', { interval, duration });
+      return;
+    }
+
     try {
       const startTime = performance.now();
       const response = await fetch(apiUrl, {
@@ -87,18 +166,26 @@ const EventNetworkPerf = () => {
 
       if (forceRecalculate || !maxBandwidth) {
         const calculatedMaxBandwidth = (responseSize / targetTime / 1024) * 2;
-        setMaxBandwidth(Math.max(calculatedMaxBandwidth, 1)); // Ensure at least 1 KB/s
+        setMaxBandwidth(Math.max(calculatedMaxBandwidth, 1));
       }
 
-      const newHeartbeat = { timestamp, latency: responseTime, bandwidth: bandwidthKBs };
+      const deviceInfo = getDeviceInfo();
+      const newHeartbeat = { timestamp, latency: responseTime, bandwidth: bandwidthKBs, deviceInfo };
       localHeartbeats.push(newHeartbeat);
       setHeartbeats(localHeartbeats);
       console.log('Heartbeat Added:', newHeartbeat);
 
       const elapsedSeconds = (Date.now() - startTimeRef.current) / 1000;
-      const expectedHeartbeats = Math.floor(durationSeconds / intervalSeconds) + 1;
+      const expectedHeartbeats = Math.floor(duration / interval) + 1;
+      console.log('Heartbeat Logic:', {
+        elapsedSeconds,
+        duration,
+        interval,
+        expectedHeartbeats,
+        currentHeartbeats: localHeartbeats.length,
+      });
 
-      if (localHeartbeats.length >= expectedHeartbeats || elapsedSeconds >= durationSeconds) {
+      if (localHeartbeats.length >= expectedHeartbeats || elapsedSeconds >= duration) {
         clearInterval(monitoringIntervalRef.current);
         monitoringIntervalRef.current = null;
         setIsMonitoring(false);
@@ -116,8 +203,8 @@ const EventNetworkPerf = () => {
         setStatus(`
           <div class="timestamp">Monitoring completed at: ${timestamp}</div>
           <div>URL: ${apiUrl}</div>
-          <div>Interval: ${intervalSeconds} seconds</div>
-          <div>Duration: ${durationSeconds} seconds</div>
+          <div>Interval: ${interval} seconds</div>
+          <div>Duration: ${duration} seconds</div>
           <div>Total Heartbeats: ${totalHeartbeats}</div>
           <div>Average Latency: ${avgLatency.toFixed(2)} ms</div>
           <div>Average Bandwidth: ${avgBandwidth.toFixed(2)} KB/s</div>
@@ -127,11 +214,11 @@ const EventNetworkPerf = () => {
           <div class="timestamp">Last measured: ${timestamp}</div>
           <div>Status: Success</div>
           <div>URL: ${apiUrl}</div>
-          <div>Interval: ${intervalSeconds} seconds</div>
-          <div>Elapsed: ${elapsedSeconds.toFixed(1)} / ${durationSeconds} seconds</div>
+          <div>Interval: ${interval} seconds</div>
+          <div>Elapsed: ${elapsedSeconds.toFixed(1)} / ${duration} seconds</div>
           <div>Heartbeats: ${localHeartbeats.length} / ${expectedHeartbeats}</div>
         `);
-        setTimeout(() => measureApiResponseTime(false, localHeartbeats), intervalSeconds * 1000);
+        setTimeout(() => measureApiResponseTime(false, localHeartbeats, interval, duration), interval * 1000);
       }
     } catch (error) {
       const timestamp = new Date().toLocaleTimeString();
@@ -142,15 +229,16 @@ const EventNetworkPerf = () => {
       setCurrentLatency(0);
       setCurrentBandwidth(0);
 
-      const newHeartbeat = { timestamp, latency: 0, bandwidth: 0, error: errorMessage };
+      const deviceInfo = getDeviceInfo();
+      const newHeartbeat = { timestamp, latency: 0, bandwidth: 0, error: errorMessage, deviceInfo };
       localHeartbeats.push(newHeartbeat);
       setHeartbeats(localHeartbeats);
       console.log('Heartbeat Added (Error):', newHeartbeat);
 
       const elapsedSeconds = (Date.now() - startTimeRef.current) / 1000;
-      const expectedHeartbeats = Math.floor(durationSeconds / intervalSeconds) + 1;
+      const expectedHeartbeats = Math.floor(duration / interval) + 1;
 
-      if (localHeartbeats.length >= expectedHeartbeats || elapsedSeconds >= durationSeconds) {
+      if (localHeartbeats.length >= expectedHeartbeats || elapsedSeconds >= duration) {
         clearInterval(monitoringIntervalRef.current);
         monitoringIntervalRef.current = null;
         setIsMonitoring(false);
@@ -168,8 +256,8 @@ const EventNetworkPerf = () => {
         setStatus(`
           <div class="timestamp">Monitoring completed at: ${timestamp}</div>
           <div>URL: ${apiUrl}</div>
-          <div>Interval: ${intervalSeconds} seconds</div>
-          <div>Duration: ${durationSeconds} seconds</div>
+          <div>Interval: ${interval} seconds</div>
+          <div>Duration: ${duration} seconds</div>
           <div>Total Heartbeats: ${totalHeartbeats}</div>
           <div>Average Latency: ${avgLatency.toFixed(2)} ms</div>
           <div>Average Bandwidth: ${avgBandwidth.toFixed(2)} KB/s</div>
@@ -179,43 +267,13 @@ const EventNetworkPerf = () => {
           <div class="error">Error: ${errorMessage}</div>
           <div class="timestamp">Last attempted: ${timestamp}</div>
           <div>URL: ${apiUrl}</div>
-          <div>Interval: ${intervalSeconds} seconds</div>
-          <div>Elapsed: ${elapsedSeconds.toFixed(1)} / ${durationSeconds} seconds</div>
+          <div>Interval: ${interval} seconds</div>
+          <div>Elapsed: ${elapsedSeconds.toFixed(1)} / ${duration} seconds</div>
           <div>Heartbeats: ${localHeartbeats.length} / ${expectedHeartbeats}</div>
         `);
-        setTimeout(() => measureApiResponseTime(false, localHeartbeats), intervalSeconds * 1000);
+        setTimeout(() => measureApiResponseTime(false, localHeartbeats, interval, duration), interval * 1000);
       }
     }
-  };
-
-  const startMonitoring = (e) => {
-    e.preventDefault();
-    if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
-
-    try {
-      new URL(apiUrl);
-    } catch (e) {
-      setStatus('<div class="error">Error: Invalid URL format</div>');
-      return;
-    }
-
-    const interval = parseInt(intervalSeconds);
-    if (isNaN(interval) || interval < 1 || interval > 10) {
-      setStatus('<div class="error">Error: Interval must be between 1 and 10 seconds</div>');
-      return;
-    }
-
-    const duration = parseInt(durationSeconds);
-    if (isNaN(duration) || duration < interval) {
-      setStatus('<div class="error">Error: Duration must be at least the interval length</div>');
-      return;
-    }
-
-    resetState();
-    setIsMonitoring(true);
-    startTimeRef.current = Date.now();
-
-    measureApiResponseTime(true, []);
   };
 
   useEffect(() => {
@@ -230,70 +288,19 @@ const EventNetworkPerf = () => {
   return (
     <div className="event-network-perf">
       <h1>API Response Time Monitor</h1>
-      <form id="apiForm" onSubmit={startMonitoring}>
-        <input
-          type="text"
-          id="apiUrl"
-          placeholder="Enter API URL (e.g., https://jsonplaceholder.typicode.com/posts/1)"
-          value={apiUrl}
-          onChange={(e) => setApiUrl(e.target.value)}
-        />
-        <input
-          type="number"
-          id="intervalInput"
-          min="1"
-          max="10"
-          step="1"
-          value={intervalSeconds}
-          onChange={(e) => setIntervalSeconds(e.target.value)}
-          title="Monitoring interval in seconds (1-10)"
-        /> sec
-        <input
-          type="number"
-          id="durationInput"
-          min={intervalSeconds}
-          step="1"
-          value={durationSeconds}
-          onChange={(e) => setDurationSeconds(e.target.value)}
-          title="Monitoring duration in seconds"
-        /> sec
-        <button type="submit" id="startButton">Start Monitoring</button>
-      </form>
+      <MonitoringForm 
+        apiUrl={apiUrl} 
+        intervalSeconds={intervalSeconds} 
+        durationSeconds={durationSeconds} 
+        maxValueLatency={maxValueLatency} 
+        onSubmit={startMonitoring} 
+      />
       <div className="gauges-container">
         <Gauge value={displayLatency} maxValue={maxValueLatency} segments={latencySegments} title="Latency" />
         <Gauge key={maxBandwidth} value={displayBandwidth} maxValue={maxBandwidth || 10} segments={bandwidthSegments} title="Bandwidth" />
       </div>
-      <div id="info" dangerouslySetInnerHTML={{ __html: status }}></div>
-      {heartbeats.length > 0 && (
-        <div className="heartbeat-list">
-          <h3>Heartbeat Log</h3>
-          <ul>
-            {heartbeats.map((hb, index) => (
-              <li key={index} className="heartbeat-item">
-                <span className="heartbeat-timestamp">{hb.timestamp}</span>
-                {hb.error ? (
-                  <span className="heartbeat-error">{hb.error}</span>
-                ) : (
-                  <>
-                    <span
-                      className="heartbeat-latency"
-                      style={{ color: getSegmentColor(hb.latency, latencySegments) }}
-                    >
-                      Latency: {hb.latency.toFixed(2)} ms
-                    </span>
-                    <span
-                      className="heartbeat-bandwidth"
-                      style={{ color: getSegmentColor(hb.bandwidth, bandwidthSegments) }}
-                    >
-                      Bandwidth: {hb.bandwidth.toFixed(2)} KB/s
-                    </span>
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <InfoPanel status={status} isInfoCollapsed={isInfoCollapsed} onToggle={() => setIsInfoCollapsed(!isInfoCollapsed)} />
+      <HeartbeatLog heartbeats={heartbeats} latencySegments={latencySegments} bandwidthSegments={bandwidthSegments} />
     </div>
   );
 };

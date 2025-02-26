@@ -1,0 +1,63 @@
+/* src/styles/HeartbeatLog.css */
+.heartbeat-list {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .heartbeat-list h3 {
+    margin-bottom: 0.5rem;
+    color: #333;
+  }
+  
+  .heartbeat-item {
+    list-style: none;
+    padding: 0.5rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .heartbeat-item:last-child {
+    border-bottom: none;
+  }
+  
+  .heartbeat-timestamp {
+    font-weight: bold;
+    color: #333;
+    margin-right: 0.5rem;
+  }
+  
+  .heartbeat-latency,
+  .heartbeat-bandwidth,
+  .heartbeat-device {
+    display: inline-block;
+    margin-right: 0.5rem;
+    font-size: 0.9rem;
+  }
+  
+  .heartbeat-error {
+    color: #D32F2F;
+    font-size: 0.9rem;
+  }
+  
+  .export-button {
+    margin: 1rem 0;
+    padding: 0.5rem 1rem;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+  
+  .export-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+  }
+  
+  .export-button:hover:not(:disabled) {
+    background-color: #45a049;
+  }

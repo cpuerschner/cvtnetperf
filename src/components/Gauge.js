@@ -1,5 +1,6 @@
+// src/components/Gauge.js
 import React, { useEffect, useRef } from 'react';
-import './Gauge.css';
+import '../styles/Gauge.css'; // Updated to use relative path from components directory
 
 const Gauge = ({ value, maxValue, segments, title }) => {
   const bgCanvasRef = useRef(null);
@@ -65,7 +66,7 @@ const Gauge = ({ value, maxValue, segments, title }) => {
   const sanitizedTitle = title.toLowerCase().replace(/[\s()]/g, '');
 
   return (
-    <div className={`gauge-container-${sanitizedTitle}`} key={`${title}-${maxValue || Date.now()}`}> {/* Unique key per gauge and maxValue, with fallback timestamp */}
+    <div className={`gauge-container-${sanitizedTitle}`} key={`${title}-${maxValue || Date.now()}`}>
       <h2>{title}</h2>
       <div className="gauge">
         <canvas className="gauge-background" width="300" height="200" ref={bgCanvasRef}></canvas>
@@ -91,7 +92,7 @@ const Gauge = ({ value, maxValue, segments, title }) => {
             return (
               <span
                 key={`${title}-${marker}-${maxValue || Date.now()}`} // Unique key for each label, maxValue, and timestamp
-                className={`gauge-label gauge-label-${sanitizedTitle}`} // Use sanitized title for valid class name
+                className={`gauge-label gauge-label-${sanitizedTitle}`}
                 style={{
                   position: 'absolute',
                   left: `${x}px`,
@@ -101,10 +102,10 @@ const Gauge = ({ value, maxValue, segments, title }) => {
                   fontSize: '9px',
                   fontWeight: 'bold',
                   textTransform: 'none',
-                  userSelect: 'none', // Prevent selection/modification
-                  contenteditable: 'false', // Prevent editing
+                  userSelect: 'none',
+                  contenteditable: 'false',
                 }}
-                data-label={label} // Debug attribute to inspect raw value (optional, can remove for production)
+                data-label={label}
               >
                 {label}
               </span>
