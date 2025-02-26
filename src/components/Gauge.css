@@ -10,11 +10,23 @@
   position: relative;
 }
 
+.gauge-container-latency,
+.gauge-container-bandwidth {
+  margin: 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 320px;
+  position: relative;
+}
+
 .gauge {
   position: relative;
   display: inline-block;
   padding: 1rem;
-  padding-bottom: 3rem; /* Increased to accommodate legend */
+  padding-bottom: 3rem;
   border: 3px solid #333;
   border-radius: 10px;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
@@ -66,7 +78,7 @@
   left: 150px;
   transform-origin: left center;
   transition: transform 0.5s ease;
-  transform: rotate(-180deg); /* Start at -180° (down/left) */
+  transform: rotate(-180deg);
   z-index: 2;
 }
 
@@ -83,6 +95,15 @@
   border-bottom: 3px solid transparent;
 }
 
+.gauge-label-latency,
+.gauge-label-bandwidth {
+  position: absolute;
+  font-size: 9px;
+  color: #333;
+  font-weight: bold;
+  z-index: 5;
+}
+
 .gauge-legend {
   position: relative;
   background: #fff;
@@ -92,8 +113,8 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   text-align: left;
   width: 100%;
-  margin-top: 1rem; /* Increased spacing */
-  z-index: 20; /* Even higher z-index */
+  margin-top: 1rem;
+  z-index: 20;
 }
 
 .legend-item {

@@ -11,7 +11,7 @@ const EventNetworkPerf = () => {
   const [currentBandwidth, setCurrentBandwidth] = useState(0);
   const [avgLatency, setAvgLatency] = useState(0);
   const [avgBandwidth, setAvgBandwidth] = useState(0);
-  const [maxBandwidth, setMaxBandwidth] = useState(null);
+  const [maxBandwidth, setMaxBandwidth] = useState(null); // Ensure it starts as null
   const [status, setStatus] = useState('Enter an API URL, interval, and duration, then click "Start Monitoring"');
   const [heartbeats, setHeartbeats] = useState([]);
   const [isMonitoring, setIsMonitoring] = useState(false);
@@ -26,16 +26,16 @@ const EventNetworkPerf = () => {
     { max: 100, color: '#4CAF50', label: 'Good (50-100ms)' },
     { max: 150, color: '#FFC107', label: 'Moderate (100-150ms)' },
     { max: 200, color: '#FF5722', label: 'Sub Par (150-200ms)' },
-    { max: 250, color: '#D32F2F', label: 'Poor (200-250ms)' }
+    { max: 250, color: '#D32F2F', label: 'Poor (200-250ms)' },
   ];
 
   const bandwidthSegments = maxBandwidth
     ? [
-        { max: maxBandwidth * 0.2, color: '#D32F2F', label: `Poor (0-${(maxBandwidth * 0.2).toFixed(1)} KB/s)` },
-        { max: maxBandwidth * 0.4, color: '#FF5722', label: `Sub Par (${(maxBandwidth * 0.2).toFixed(1)}-${(maxBandwidth * 0.4).toFixed(1)} KB/s)` },
-        { max: maxBandwidth * 0.6, color: '#FFC107', label: `Moderate (${(maxBandwidth * 0.4).toFixed(1)}-${(maxBandwidth * 0.6).toFixed(1)} KB/s)` },
-        { max: maxBandwidth * 0.8, color: '#4CAF50', label: `Good (${(maxBandwidth * 0.6).toFixed(1)}-${(maxBandwidth * 0.8).toFixed(1)} KB/s)` },
-        { max: maxBandwidth, color: '#006400', label: `Great (${(maxBandwidth * 0.8).toFixed(1)}-${maxBandwidth.toFixed(1)} KB/s)` }
+        { max: maxBandwidth * 0.2, color: '#D32F2F', label: `Poor (0-${(maxBandwidth * 0.2).toFixed(2)} KB/s)` },
+        { max: maxBandwidth * 0.4, color: '#FF5722', label: `Sub Par (${(maxBandwidth * 0.2).toFixed(2)}-${(maxBandwidth * 0.4).toFixed(2)} KB/s)` },
+        { max: maxBandwidth * 0.6, color: '#FFC107', label: `Moderate (${(maxBandwidth * 0.4).toFixed(2)}-${(maxBandwidth * 0.6).toFixed(2)} KB/s)` },
+        { max: maxBandwidth * 0.8, color: '#4CAF50', label: `Good (${(maxBandwidth * 0.6).toFixed(2)}-${(maxBandwidth * 0.8).toFixed(2)} KB/s)` },
+        { max: maxBandwidth, color: '#006400', label: `Great (${(maxBandwidth * 0.8).toFixed(2)}-${maxBandwidth.toFixed(2)} KB/s)` },
       ]
     : [];
 
@@ -53,7 +53,7 @@ const EventNetworkPerf = () => {
     setCurrentBandwidth(0);
     setAvgLatency(0);
     setAvgBandwidth(0);
-    setMaxBandwidth(null);
+    setMaxBandwidth(null); // Reset maxBandwidth to null
     setStatus('Enter an API URL, interval, and duration, then click "Start Monitoring"');
   };
 
@@ -65,7 +65,7 @@ const EventNetworkPerf = () => {
         mode: 'cors',
         cache: 'no-cache',
         credentials: 'omit',
-        headers: { 'Accept': 'application/json' }
+        headers: { 'Accept': 'application/json' },
       });
 
       const endTime = performance.now();
@@ -87,14 +87,13 @@ const EventNetworkPerf = () => {
 
       if (forceRecalculate || !maxBandwidth) {
         const calculatedMaxBandwidth = (responseSize / targetTime / 1024) * 2;
-        setMaxBandwidth(Math.max(calculatedMaxBandwidth, 1));
+        setMaxBandwidth(Math.max(calculatedMaxBandwidth, 1)); // Ensure at least 1 KB/s
       }
 
       const newHeartbeat = { timestamp, latency: responseTime, bandwidth: bandwidthKBs };
       localHeartbeats.push(newHeartbeat);
       setHeartbeats(localHeartbeats);
       console.log('Heartbeat Added:', newHeartbeat);
-      console.log('Current Heartbeats:', localHeartbeats);
 
       const elapsedSeconds = (Date.now() - startTimeRef.current) / 1000;
       const expectedHeartbeats = Math.floor(durationSeconds / intervalSeconds) + 1;
@@ -132,7 +131,6 @@ const EventNetworkPerf = () => {
           <div>Elapsed: ${elapsedSeconds.toFixed(1)} / ${durationSeconds} seconds</div>
           <div>Heartbeats: ${localHeartbeats.length} / ${expectedHeartbeats}</div>
         `);
-        // Pass the updated localHeartbeats to the next iteration
         setTimeout(() => measureApiResponseTime(false, localHeartbeats), intervalSeconds * 1000);
       }
     } catch (error) {
@@ -148,7 +146,6 @@ const EventNetworkPerf = () => {
       localHeartbeats.push(newHeartbeat);
       setHeartbeats(localHeartbeats);
       console.log('Heartbeat Added (Error):', newHeartbeat);
-      console.log('Current Heartbeats (Error):', localHeartbeats);
 
       const elapsedSeconds = (Date.now() - startTimeRef.current) / 1000;
       const expectedHeartbeats = Math.floor(durationSeconds / intervalSeconds) + 1;
@@ -264,7 +261,7 @@ const EventNetworkPerf = () => {
       </form>
       <div className="gauges-container">
         <Gauge value={displayLatency} maxValue={maxValueLatency} segments={latencySegments} title="Latency" />
-        <Gauge value={displayBandwidth} maxValue={maxBandwidth || 10} segments={bandwidthSegments} title="Bandwidth (KB/s)" />
+        <Gauge key={maxBandwidth} value={displayBandwidth} maxValue={maxBandwidth || 10} segments={bandwidthSegments} title="Bandwidth" />
       </div>
       <div id="info" dangerouslySetInnerHTML={{ __html: status }}></div>
       {heartbeats.length > 0 && (
