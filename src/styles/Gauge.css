@@ -107,7 +107,6 @@
 .gauge-legend {
   position: relative;
   background: #fff;
-  border: 1px solid red; /* Temporary debug border */
   border-radius: 8px;
   padding: 0.5rem;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);

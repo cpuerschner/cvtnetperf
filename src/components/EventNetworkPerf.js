@@ -57,13 +57,13 @@ const EventNetworkPerf = () => {
       deviceType = /Mobile/.test(navigator.userAgent) ? 'Mobile' : 'Tablet';
       os = 'Android';
     } else if (/Windows NT/i.test(navigator.userAgent)) {
-      deviceType = 'Desktop';
+      deviceType = 'Windows';
       os = 'Windows';
     } else if (/Mac OS X/i.test(navigator.userAgent)) {
-      deviceType = 'Desktop';
+      deviceType = 'MacBook';
       os = 'macOS';
     } else if (/Linux/i.test(navigator.userAgent)) {
-      deviceType = 'Desktop';
+      deviceType = 'Unix Desktop';
       os = 'Linux';
     }
 
