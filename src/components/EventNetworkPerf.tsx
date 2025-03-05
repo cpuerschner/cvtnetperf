@@ -1,8 +1,8 @@
 // src/components/EventNetworkPerf.js
 import React, { useState, useEffect, useRef } from 'react';
-import Gauge from './Gauge';
-import HeartbeatLog from './HeartbeatLog';
-import MonitoringForm from './MonitoringForm';
+import Gauge from './Gauge.tsx';
+import HeartbeatLog from './HeartbeatLog.tsx';
+import MonitoringForm from './MonitoringForm.tsx';
 import InfoPanel from './InfoPanel.tsx'; // Still works without .tsx here
 import '../styles/EventNetworkPerf.css';
 import { UAParser } from 'ua-parser-js';
