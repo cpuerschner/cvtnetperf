@@ -1,4 +1,4 @@
-// src/components/InfoPanel.js
+// src/components/InfoPanel.tsx
 import React from 'react';
 import '../styles/InfoPanel.css'; // Import the new CSS file
 

@@ -1,6 +1,6 @@
 // src/App.js
 import React from 'react';
-import EventNetworkPerf from './components/EventNetworkPerf';
+import EventNetworkPerf from './components/EventNetworkPerf.tsx';
 import './App.css';
 
 function App() {

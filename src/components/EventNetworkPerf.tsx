@@ -3,26 +3,27 @@ import React, { useState, useEffect, useRef } from 'react';
 import Gauge from './Gauge';
 import HeartbeatLog from './HeartbeatLog';
 import MonitoringForm from './MonitoringForm';
-import InfoPanel from './InfoPanel'; // Import the new component
+import InfoPanel from './InfoPanel.tsx'; // Still works without .tsx here
 import '../styles/EventNetworkPerf.css';
 import { UAParser } from 'ua-parser-js';
 
-const EventNetworkPerf = () => {
-  const [apiUrl, setApiUrl] = useState('https://jsonplaceholder.typicode.com/posts/1');
-  const [intervalSeconds, setIntervalSeconds] = useState(2); // Practical default: 2-second interval
-  const [durationSeconds, setDurationSeconds] = useState(30); // Practical default: 30-second duration
-  const [maxValueLatency, setMaxValueLatency] = useState(250); // Default max latency value
-  const [currentLatency, setCurrentLatency] = useState(0);
-  const [currentBandwidth, setCurrentBandwidth] = useState(0);
-  const [avgLatency, setAvgLatency] = useState(0);
-  const [avgBandwidth, setAvgBandwidth] = useState(0);
-  const [maxBandwidth, setMaxBandwidth] = useState(null);
-  const [status, setStatus] = useState('Enter an API URL, interval, and duration, then click "Start Monitoring"');
-  const [heartbeats, setHeartbeats] = useState([]);
-  const [isMonitoring, setIsMonitoring] = useState(false);
-  const [isInfoCollapsed, setIsInfoCollapsed] = useState(true);
-  const monitoringIntervalRef = useRef(null);
-  const startTimeRef = useRef(null);
+const EventNetworkPerf: React.FC = () => {
+  // Existing state declarations remain unchanged for now
+  const [apiUrl, setApiUrl] = useState<string>('https://jsonplaceholder.typicode.com/posts/1');
+  const [intervalSeconds, setIntervalSeconds] = useState<number>(2);
+  const [durationSeconds, setDurationSeconds] = useState<number>(30);
+  const [maxValueLatency, setMaxValueLatency] = useState<number>(250);
+  const [currentLatency, setCurrentLatency] = useState<number>(0);
+  const [currentBandwidth, setCurrentBandwidth] = useState<number>(0);
+  const [avgLatency, setAvgLatency] = useState<number>(0);
+  const [avgBandwidth, setAvgBandwidth] = useState<number>(0);
+  const [maxBandwidth, setMaxBandwidth] = useState<number | null>(null);
+  const [status, setStatus] = useState<string>('Enter an API URL, interval, and duration, then click "Start Monitoring"');
+  const [heartbeats, setHeartbeats] = useState<any[]>([]); // Refine this type later
+  const [isMonitoring, setIsMonitoring] = useState<boolean>(false);
+  const [isInfoCollapsed, setIsInfoCollapsed] = useState<boolean>(true);
+  const monitoringIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number | null>(null);
 
   const targetTime = 0.1;
 
