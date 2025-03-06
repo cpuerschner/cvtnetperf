@@ -1,6 +1,6 @@
 // src/App.tsx
 import React from 'react';
-import EventNetworkPerf from './components/EventNetworkPerf'; // Remove .tsx (optional in TS)
+import EventNetworkPerf from './components/EventNetworkPerf.tsx'; // Remove .tsx (optional in TS)
 import './App.css';
 
 const App: React.FC = () => {
