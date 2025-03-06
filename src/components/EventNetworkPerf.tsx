@@ -1,14 +1,56 @@
-// src/components/EventNetworkPerf.js
+// src/components/EventNetworkPerf.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import Gauge from './Gauge.tsx';
-import HeartbeatLog from './HeartbeatLog.tsx';
-import MonitoringForm from './MonitoringForm.tsx';
-import InfoPanel from './InfoPanel.tsx'; // Still works without .tsx here
+import Gauge from './Gauge';
+import HeartbeatLog from './HeartbeatLog';
+import MonitoringForm from './MonitoringForm';
+import InfoPanel from './InfoPanel';
 import '../styles/EventNetworkPerf.css';
 import { UAParser } from 'ua-parser-js';
 
+// Define interfaces
+interface Heartbeat {
+  timestamp: string;
+  latency: number;
+  bandwidth: number;
+  deviceInfo: string;
+  error?: string;
+}
+
+interface Segment {
+  max: number;
+  color: string;
+  label: string;
+}
+
+// Assuming prop types for child components (adjust as needed)
+interface GaugeProps {
+  value: number;
+  maxValue: number;
+  segments: Segment[];
+  title: string;
+}
+
+interface HeartbeatLogProps {
+  heartbeats: Heartbeat[];
+  latencySegments: Segment[];
+  bandwidthSegments: Segment[];
+}
+
+interface MonitoringFormProps {
+  apiUrl: string;
+  intervalSeconds: number;
+  durationSeconds: number;
+  maxValueLatency: number;
+  onSubmit: (apiUrl: string, intervalSeconds: string, durationSeconds: string, maxValueLatency: string) => void;
+}
+
+interface InfoPanelProps {
+  status: string;
+  isInfoCollapsed: boolean;
+  onToggle: () => void;
+}
+
 const EventNetworkPerf: React.FC = () => {
-  // Existing state declarations remain unchanged for now
   const [apiUrl, setApiUrl] = useState<string>('https://jsonplaceholder.typicode.com/posts/1');
   const [intervalSeconds, setIntervalSeconds] = useState<number>(2);
   const [durationSeconds, setDurationSeconds] = useState<number>(30);
@@ -19,7 +61,7 @@ const EventNetworkPerf: React.FC = () => {
   const [avgBandwidth, setAvgBandwidth] = useState<number>(0);
   const [maxBandwidth, setMaxBandwidth] = useState<number | null>(null);
   const [status, setStatus] = useState<string>('Enter an API URL, interval, and duration, then click "Start Monitoring"');
-  const [heartbeats, setHeartbeats] = useState<any[]>([]); // Refine this type later
+  const [heartbeats, setHeartbeats] = useState<Heartbeat[]>([]);
   const [isMonitoring, setIsMonitoring] = useState<boolean>(false);
   const [isInfoCollapsed, setIsInfoCollapsed] = useState<boolean>(true);
   const monitoringIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -27,7 +69,7 @@ const EventNetworkPerf: React.FC = () => {
 
   const targetTime = 0.1;
 
-  const latencySegments = [
+  const latencySegments: Segment[] = [
     { max: maxValueLatency * 0.2, color: '#006400', label: 'Great (0-20%)' },
     { max: maxValueLatency * 0.4, color: '#4CAF50', label: 'Good (20-40%)' },
     { max: maxValueLatency * 0.6, color: '#FFC107', label: 'Moderate (40-60%)' },
@@ -35,7 +77,7 @@ const EventNetworkPerf: React.FC = () => {
     { max: maxValueLatency, color: '#D32F2F', label: 'Poor (80-100%)' },
   ];
 
-  const bandwidthSegments = maxBandwidth
+  const bandwidthSegments: Segment[] = maxBandwidth
     ? [
         { max: maxBandwidth * 0.2, color: '#D32F2F', label: `Poor (0-${(maxBandwidth * 0.2).toFixed(2)} KB/s)` },
         { max: maxBandwidth * 0.4, color: '#FF5722', label: `Sub Par (${(maxBandwidth * 0.2).toFixed(2)}-${(maxBandwidth * 0.4).toFixed(2)} KB/s)` },
@@ -45,9 +87,8 @@ const EventNetworkPerf: React.FC = () => {
       ]
     : [];
 
-  const getDeviceInfo = () => {
+  const getDeviceInfo = (): string => {
     const parser = new UAParser();
-    const result = parser.getResult();
     let deviceType = 'Unknown Device';
     let os = 'Unknown OS';
 
@@ -71,7 +112,7 @@ const EventNetworkPerf: React.FC = () => {
     return `${deviceType} (${os})`;
   };
 
-  const resetState = () => {
+  const resetState = (): void => {
     setHeartbeats([]);
     setCurrentLatency(0);
     setCurrentBandwidth(0);
@@ -81,7 +122,12 @@ const EventNetworkPerf: React.FC = () => {
     setStatus('Enter an API URL, interval, and duration, then click "Start Monitoring"');
   };
 
-  const startMonitoring = (newApiUrl, newIntervalSeconds, newDurationSeconds, newMaxValueLatency) => {
+  const startMonitoring = (
+    newApiUrl: string,
+    newIntervalSeconds: string,
+    newDurationSeconds: string,
+    newMaxValueLatency: string
+  ): void => {
     console.log('Starting monitoring with:', {
       apiUrl: newApiUrl,
       intervalSeconds: newIntervalSeconds,
@@ -127,7 +173,12 @@ const EventNetworkPerf: React.FC = () => {
     measureApiResponseTime(true, [], interval, duration);
   };
 
-  const measureApiResponseTime = async (forceRecalculate = false, localHeartbeats = [], interval, duration) => {
+  const measureApiResponseTime = async (
+    forceRecalculate = false,
+    localHeartbeats: Heartbeat[] = [],
+    interval: number,
+    duration: number
+  ): Promise<void> => {
     console.log('Measuring with params:', {
       apiUrl,
       interval,
@@ -171,33 +222,21 @@ const EventNetworkPerf: React.FC = () => {
       }
 
       const deviceInfo = getDeviceInfo();
-      const newHeartbeat = { timestamp, latency: responseTime, bandwidth: bandwidthKBs, deviceInfo };
+      const newHeartbeat: Heartbeat = { timestamp, latency: responseTime, bandwidth: bandwidthKBs, deviceInfo };
       localHeartbeats.push(newHeartbeat);
-      setHeartbeats(localHeartbeats);
-      console.log('Heartbeat Added:', newHeartbeat);
+      setHeartbeats([...localHeartbeats]); // Spread to create a new array
 
-      const elapsedSeconds = (Date.now() - startTimeRef.current) / 1000;
+      const elapsedSeconds = (Date.now() - startTimeRef.current!) / 1000;
       const expectedHeartbeats = Math.floor(duration / interval) + 1;
-      console.log('Heartbeat Logic:', {
-        elapsedSeconds,
-        duration,
-        interval,
-        expectedHeartbeats,
-        currentHeartbeats: localHeartbeats.length,
-      });
 
       if (localHeartbeats.length >= expectedHeartbeats || elapsedSeconds >= duration) {
-        clearInterval(monitoringIntervalRef.current);
+        clearInterval(monitoringIntervalRef.current!);
         monitoringIntervalRef.current = null;
         setIsMonitoring(false);
 
         const totalHeartbeats = localHeartbeats.length;
         const avgLatency = localHeartbeats.reduce((sum, hb) => sum + hb.latency, 0) / totalHeartbeats;
         const avgBandwidth = localHeartbeats.reduce((sum, hb) => sum + hb.bandwidth, 0) / totalHeartbeats;
-
-        console.log('Final Heartbeats:', localHeartbeats);
-        console.log('Total Heartbeats:', totalHeartbeats);
-        console.log('Calculated Avg Latency:', avgLatency, 'Avg Bandwidth:', avgBandwidth);
 
         setAvgLatency(avgLatency);
         setAvgBandwidth(avgBandwidth);
@@ -223,7 +262,7 @@ const EventNetworkPerf: React.FC = () => {
       }
     } catch (error) {
       const timestamp = new Date().toLocaleTimeString();
-      let errorMessage = error.message;
+      let errorMessage = (error as Error).message; // Type assertion for error
       if (errorMessage.includes('CORS')) {
         errorMessage += '<br><span class="error">Try a CORS-enabled API or use a proxy.</span>';
       }
@@ -231,26 +270,21 @@ const EventNetworkPerf: React.FC = () => {
       setCurrentBandwidth(0);
 
       const deviceInfo = getDeviceInfo();
-      const newHeartbeat = { timestamp, latency: 0, bandwidth: 0, error: errorMessage, deviceInfo };
+      const newHeartbeat: Heartbeat = { timestamp, latency: 0, bandwidth: 0, deviceInfo, error: errorMessage };
       localHeartbeats.push(newHeartbeat);
-      setHeartbeats(localHeartbeats);
-      console.log('Heartbeat Added (Error):', newHeartbeat);
+      setHeartbeats([...localHeartbeats]); // Spread to create a new array
 
-      const elapsedSeconds = (Date.now() - startTimeRef.current) / 1000;
+      const elapsedSeconds = (Date.now() - startTimeRef.current!) / 1000;
       const expectedHeartbeats = Math.floor(duration / interval) + 1;
 
       if (localHeartbeats.length >= expectedHeartbeats || elapsedSeconds >= duration) {
-        clearInterval(monitoringIntervalRef.current);
+        clearInterval(monitoringIntervalRef.current!);
         monitoringIntervalRef.current = null;
         setIsMonitoring(false);
 
         const totalHeartbeats = localHeartbeats.length;
-        const avgLatency = localHeartbeats.reduce((sum, hb) => sum + (hb.latency || 0), 0) / totalHeartbeats;
-        const avgBandwidth = localHeartbeats.reduce((sum, hb) => sum + (hb.bandwidth || 0), 0) / totalHeartbeats;
-
-        console.log('Final Heartbeats (Error):', localHeartbeats);
-        console.log('Total Heartbeats (Error):', totalHeartbeats);
-        console.log('Calculated Avg Latency (Error):', avgLatency, 'Avg Bandwidth (Error):', avgBandwidth);
+        const avgLatency = localHeartbeats.reduce((sum, hb) => sum + hb.latency, 0) / totalHeartbeats;
+        const avgBandwidth = localHeartbeats.reduce((sum, hb) => sum + hb.bandwidth, 0) / totalHeartbeats;
 
         setAvgLatency(avgLatency);
         setAvgBandwidth(avgBandwidth);
@@ -298,10 +332,24 @@ const EventNetworkPerf: React.FC = () => {
       />
       <div className="gauges-container">
         <Gauge value={displayLatency} maxValue={maxValueLatency} segments={latencySegments} title="Latency" />
-        <Gauge key={maxBandwidth} value={displayBandwidth} maxValue={maxBandwidth || 10} segments={bandwidthSegments} title="Bandwidth" />
+        <Gauge 
+          key={maxBandwidth} 
+          value={displayBandwidth} 
+          maxValue={maxBandwidth || 10} 
+          segments={bandwidthSegments} 
+          title="Bandwidth" 
+        />
       </div>
-      <InfoPanel status={status} isInfoCollapsed={isInfoCollapsed} onToggle={() => setIsInfoCollapsed(!isInfoCollapsed)} />
-      <HeartbeatLog heartbeats={heartbeats} latencySegments={latencySegments} bandwidthSegments={bandwidthSegments} />
+      <InfoPanel 
+        status={status} 
+        isInfoCollapsed={isInfoCollapsed} 
+        onToggle={() => setIsInfoCollapsed(!isInfoCollapsed)} 
+      />
+      <HeartbeatLog 
+        heartbeats={heartbeats} 
+        latencySegments={latencySegments} 
+        bandwidthSegments={bandwidthSegments} 
+      />
     </div>
   );
 };
