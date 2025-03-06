@@ -1,14 +1,29 @@
-// src/components/MonitoringForm.js
-import React from 'react';
+// src/components/MonitoringForm.tsx
+import React, { useState } from 'react';
 import '../styles/MonitoringForm.css';
 
-const MonitoringForm = ({ apiUrl, intervalSeconds, durationSeconds, maxValueLatency, onSubmit }) => {
-  const [formApiUrl, setFormApiUrl] = React.useState(apiUrl);
-  const [formIntervalSeconds, setFormIntervalSeconds] = React.useState(intervalSeconds);
-  const [formDurationSeconds, setFormDurationSeconds] = React.useState(durationSeconds);
-  const [formMaxValueLatency, setFormMaxValueLatency] = React.useState(maxValueLatency);
+// Define props interface
+interface MonitoringFormProps {
+  apiUrl: string;
+  intervalSeconds: number;
+  durationSeconds: number;
+  maxValueLatency: number;
+  onSubmit: (apiUrl: string, intervalSeconds: string, durationSeconds: string, maxValueLatency: string) => void;
+}
 
-  const handleSubmit = (e) => {
+const MonitoringForm: React.FC<MonitoringFormProps> = ({
+  apiUrl,
+  intervalSeconds,
+  durationSeconds,
+  maxValueLatency,
+  onSubmit,
+}) => {
+  const [formApiUrl, setFormApiUrl] = useState<string>(apiUrl);
+  const [formIntervalSeconds, setFormIntervalSeconds] = useState<string>(intervalSeconds.toString());
+  const [formDurationSeconds, setFormDurationSeconds] = useState<string>(durationSeconds.toString());
+  const [formMaxValueLatency, setFormMaxValueLatency] = useState<string>(maxValueLatency.toString());
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     console.log('Submitting form with:', {
       apiUrl: formApiUrl,

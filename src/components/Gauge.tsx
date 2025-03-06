@@ -1,18 +1,38 @@
-// src/components/Gauge.js
+// src/components/Gauge.tsx
 import React, { useEffect, useRef } from 'react';
-import '../styles/Gauge.css'; // Updated to use relative path from components directory
+import '../styles/Gauge.css';
 
-const Gauge = ({ value, maxValue, segments, title }) => {
-  const bgCanvasRef = useRef(null);
-  const needleRef = useRef(null);
-  const legendRef = useRef(null);
+// Define the Segment interface (matches EventNetworkPerf.tsx)
+interface Segment {
+  max: number;
+  color: string;
+  label: string;
+}
+
+// Define props for Gauge
+interface GaugeProps {
+  value: number;
+  maxValue: number;
+  segments: Segment[];
+  title: string;
+}
+
+const Gauge: React.FC<GaugeProps> = ({ value, maxValue, segments, title }) => {
+  const bgCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const needleRef = useRef<HTMLDivElement | null>(null);
+  const legendRef = useRef<HTMLDivElement | null>(null);
 
   const centerX = 150;
   const centerY = 160;
   const radius = 120;
 
   useEffect(() => {
-    const bgCtx = bgCanvasRef.current.getContext('2d');
+    const bgCanvas = bgCanvasRef.current;
+    if (!bgCanvas) return;
+
+    const bgCtx = bgCanvas.getContext('2d');
+    if (!bgCtx) return;
+
     bgCtx.clearRect(0, 0, 300, 200); // Clear canvas to avoid overlap
 
     // Draw base arc
@@ -24,9 +44,9 @@ const Gauge = ({ value, maxValue, segments, title }) => {
 
     // Draw colored segment arcs
     let previousAngle = Math.PI;
-    segments.forEach(segment => {
+    segments.forEach((segment) => {
       const zonePercentage = Math.min(segment.max / maxValue, 1);
-      const endAngle = Math.PI + (zonePercentage * Math.PI);
+      const endAngle = Math.PI + zonePercentage * Math.PI;
       bgCtx.beginPath();
       bgCtx.arc(centerX, centerY, radius, previousAngle, endAngle, false);
       bgCtx.strokeStyle = segment.color;
@@ -36,13 +56,19 @@ const Gauge = ({ value, maxValue, segments, title }) => {
   }, [segments, maxValue, title]);
 
   useEffect(() => {
-    needleRef.current.style.transform = `rotate(-180deg)`; // Force -180° on mount
+    const needle = needleRef.current;
+    if (needle) {
+      needle.style.transform = `rotate(-180deg)`; // Force -180° on mount
+    }
   }, [title]);
 
   useEffect(() => {
     const percentage = Math.min(value / maxValue, 1);
-    const rotationDegrees = -180 + (percentage * 180);
-    needleRef.current.style.transform = `rotate(${rotationDegrees}deg)`;
+    const rotationDegrees = -180 + percentage * 180;
+    const needle = needleRef.current;
+    if (needle) {
+      needle.style.transform = `rotate(${rotationDegrees}deg)`;
+    }
   }, [value, maxValue, title]);
 
   useEffect(() => {
@@ -52,10 +78,10 @@ const Gauge = ({ value, maxValue, segments, title }) => {
   }, [segments, title]);
 
   // Dynamic label logic - use segment max values for markers
-  const markers = segments.map(segment => segment.max);
+  const markers = segments.map((segment) => segment.max);
 
   // Function to format labels with consistent 2 decimal places for Bandwidth, matching gauge-value
-  const formatLabel = (marker, isBandwidth) => {
+  const formatLabel = (marker: number, isBandwidth: boolean): string => {
     if (isBandwidth) {
       return Number(marker).toFixed(2).toString(); // Ensure 2 decimal places as string
     }
@@ -69,7 +95,7 @@ const Gauge = ({ value, maxValue, segments, title }) => {
     <div className={`gauge-container-${sanitizedTitle}`} key={`${title}-${maxValue || Date.now()}`}>
       <h2>{title}</h2>
       <div className="gauge">
-        <canvas className="gauge-background" width="300" height="200" ref={bgCanvasRef}></canvas>
+        <canvas className="gauge-background" width={300} height={200} ref={bgCanvasRef}></canvas>
         <div className="gauge-pivot"></div>
         <div
           className="gauge-needle"
@@ -91,7 +117,7 @@ const Gauge = ({ value, maxValue, segments, title }) => {
             const label = formatLabel(marker, title === 'Bandwidth');
             return (
               <span
-                key={`${title}-${marker}-${maxValue || Date.now()}`} // Unique key for each label, maxValue, and timestamp
+                key={`${title}-${marker}-${maxValue || Date.now()}`} // Unique key for each label
                 className={`gauge-label gauge-label-${sanitizedTitle}`}
                 style={{
                   position: 'absolute',
@@ -103,8 +129,10 @@ const Gauge = ({ value, maxValue, segments, title }) => {
                   fontWeight: 'bold',
                   textTransform: 'none',
                   userSelect: 'none',
-                  contenteditable: 'false',
+                  // contenteditable: 'false', // Removed as it’s not a valid style prop; use attribute if needed
                 }}
+                // If you need contenteditable, add it as a prop, not in style
+                // contentEditable={false}
                 data-label={label}
               >
                 {label}

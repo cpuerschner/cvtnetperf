@@ -1,8 +1,14 @@
 // src/components/InfoPanel.tsx
 import React from 'react';
-import '../styles/InfoPanel.css'; // Import the new CSS file
+import '../styles/InfoPanel.css';
 
-const InfoPanel = ({ status, isInfoCollapsed, onToggle }) => {
+interface InfoPanelProps {
+  status: string;
+  isInfoCollapsed: boolean;
+  onToggle: () => void;
+}
+
+const InfoPanel: React.FC<InfoPanelProps> = ({ status, isInfoCollapsed, onToggle }) => {
   return (
     <div className="info-panel">
       <button 

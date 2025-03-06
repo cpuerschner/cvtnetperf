@@ -7,7 +7,6 @@ import InfoPanel from './InfoPanel.tsx';
 import '../styles/EventNetworkPerf.css';
 import { UAParser } from 'ua-parser-js';
 
-// Define interfaces
 interface Heartbeat {
   timestamp: string;
   latency: number;
@@ -20,34 +19,6 @@ interface Segment {
   max: number;
   color: string;
   label: string;
-}
-
-// Assuming prop types for child components (adjust as needed)
-interface GaugeProps {
-  value: number;
-  maxValue: number;
-  segments: Segment[];
-  title: string;
-}
-
-interface HeartbeatLogProps {
-  heartbeats: Heartbeat[];
-  latencySegments: Segment[];
-  bandwidthSegments: Segment[];
-}
-
-interface MonitoringFormProps {
-  apiUrl: string;
-  intervalSeconds: number;
-  durationSeconds: number;
-  maxValueLatency: number;
-  onSubmit: (apiUrl: string, intervalSeconds: string, durationSeconds: string, maxValueLatency: string) => void;
-}
-
-interface InfoPanelProps {
-  status: string;
-  isInfoCollapsed: boolean;
-  onToggle: () => void;
 }
 
 const EventNetworkPerf: React.FC = () => {
@@ -88,7 +59,6 @@ const EventNetworkPerf: React.FC = () => {
     : [];
 
   const getDeviceInfo = (): string => {
-    const parser = new UAParser();
     let deviceType = 'Unknown Device';
     let os = 'Unknown OS';
 
@@ -224,13 +194,13 @@ const EventNetworkPerf: React.FC = () => {
       const deviceInfo = getDeviceInfo();
       const newHeartbeat: Heartbeat = { timestamp, latency: responseTime, bandwidth: bandwidthKBs, deviceInfo };
       localHeartbeats.push(newHeartbeat);
-      setHeartbeats([...localHeartbeats]); // Spread to create a new array
+      setHeartbeats([...localHeartbeats]);
 
-      const elapsedSeconds = (Date.now() - startTimeRef.current!) / 1000;
+      const elapsedSeconds = startTimeRef.current !== null ? (Date.now() - startTimeRef.current) / 1000 : 0;
       const expectedHeartbeats = Math.floor(duration / interval) + 1;
 
       if (localHeartbeats.length >= expectedHeartbeats || elapsedSeconds >= duration) {
-        clearInterval(monitoringIntervalRef.current!);
+        if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
         monitoringIntervalRef.current = null;
         setIsMonitoring(false);
 
@@ -262,7 +232,7 @@ const EventNetworkPerf: React.FC = () => {
       }
     } catch (error) {
       const timestamp = new Date().toLocaleTimeString();
-      let errorMessage = (error as Error).message; // Type assertion for error
+      let errorMessage = (error as Error).message;
       if (errorMessage.includes('CORS')) {
         errorMessage += '<br><span class="error">Try a CORS-enabled API or use a proxy.</span>';
       }
@@ -272,13 +242,13 @@ const EventNetworkPerf: React.FC = () => {
       const deviceInfo = getDeviceInfo();
       const newHeartbeat: Heartbeat = { timestamp, latency: 0, bandwidth: 0, deviceInfo, error: errorMessage };
       localHeartbeats.push(newHeartbeat);
-      setHeartbeats([...localHeartbeats]); // Spread to create a new array
+      setHeartbeats([...localHeartbeats]);
 
-      const elapsedSeconds = (Date.now() - startTimeRef.current!) / 1000;
+      const elapsedSeconds = startTimeRef.current !== null ? (Date.now() - startTimeRef.current) / 1000 : 0;
       const expectedHeartbeats = Math.floor(duration / interval) + 1;
 
       if (localHeartbeats.length >= expectedHeartbeats || elapsedSeconds >= duration) {
-        clearInterval(monitoringIntervalRef.current!);
+        if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
         monitoringIntervalRef.current = null;
         setIsMonitoring(false);
 

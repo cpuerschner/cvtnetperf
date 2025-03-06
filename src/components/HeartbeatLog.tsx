@@ -1,10 +1,29 @@
-// src/components/HeartbeatLog.js
+// src/components/HeartbeatLog.tsx
 import React from 'react';
-import '../styles/HeartbeatLog.css'; // Updated to use relative path from components directory
+import '../styles/HeartbeatLog.css';
 
-const HeartbeatLog = ({ heartbeats, latencySegments, bandwidthSegments }) => {
-  // Function to get segment color for a value
-  const getSegmentColor = (value, segments) => {
+interface Heartbeat {
+  timestamp: string;
+  latency: number;
+  bandwidth: number;
+  deviceInfo: string;
+  error?: string;
+}
+
+interface Segment {
+  max: number;
+  color: string;
+  label: string;
+}
+
+interface HeartbeatLogProps {
+  heartbeats: Heartbeat[];
+  latencySegments: Segment[];
+  bandwidthSegments: Segment[];
+}
+
+const HeartbeatLog: React.FC<HeartbeatLogProps> = ({ heartbeats, latencySegments, bandwidthSegments }) => {
+  const getSegmentColor = (value: number, segments: Segment[]): string => {
     if (!segments || segments.length === 0) return '#666';
     for (const segment of segments) {
       if (value <= segment.max) return segment.color;
@@ -12,14 +31,13 @@ const HeartbeatLog = ({ heartbeats, latencySegments, bandwidthSegments }) => {
     return segments[segments.length - 1].color;
   };
 
-  // Function to export heartbeats to a JSON-like text file
   const exportHeartbeatsToFile = () => {
     if (heartbeats.length === 0) {
       alert('No heartbeat data to export.');
       return;
     }
 
-    const heartbeatData = JSON.stringify(heartbeats, null, 2); // Pretty-print JSON
+    const heartbeatData = JSON.stringify(heartbeats, null, 2);
     const blob = new Blob([heartbeatData], { type: 'text/plain;charset=utf-8' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
