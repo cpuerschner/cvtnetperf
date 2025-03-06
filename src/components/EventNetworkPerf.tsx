@@ -12,6 +12,7 @@ interface Heartbeat {
   latency: number;
   bandwidth: number;
   deviceInfo: string;
+  deviceName: string; // Changed from deviceId to deviceName
   error?: string;
 }
 
@@ -35,6 +36,15 @@ const EventNetworkPerf: React.FC = () => {
   const [heartbeats, setHeartbeats] = useState<Heartbeat[]>([]);
   const [isMonitoring, setIsMonitoring] = useState<boolean>(false);
   const [isInfoCollapsed, setIsInfoCollapsed] = useState<boolean>(true);
+  const [deviceName, setDeviceName] = useState<string>(() => {
+    // Get or prompt for deviceName
+    const storedName = localStorage.getItem('deviceName');
+    if (storedName) return storedName;
+    const name = prompt('Enter device location (e.g., North, South, East, West):');
+    const finalName = name && name.trim() ? name.trim() : 'Unknown';
+    localStorage.setItem('deviceName', finalName);
+    return finalName;
+  });
   const monitoringIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
 
@@ -192,7 +202,13 @@ const EventNetworkPerf: React.FC = () => {
       }
 
       const deviceInfo = getDeviceInfo();
-      const newHeartbeat: Heartbeat = { timestamp, latency: responseTime, bandwidth: bandwidthKBs, deviceInfo };
+      const newHeartbeat: Heartbeat = {
+        timestamp,
+        latency: responseTime,
+        bandwidth: bandwidthKBs,
+        deviceInfo,
+        deviceName, // Use deviceName instead of deviceId
+      };
       localHeartbeats.push(newHeartbeat);
       setHeartbeats([...localHeartbeats]);
 
@@ -240,7 +256,14 @@ const EventNetworkPerf: React.FC = () => {
       setCurrentBandwidth(0);
 
       const deviceInfo = getDeviceInfo();
-      const newHeartbeat: Heartbeat = { timestamp, latency: 0, bandwidth: 0, deviceInfo, error: errorMessage };
+      const newHeartbeat: Heartbeat = {
+        timestamp,
+        latency: 0,
+        bandwidth: 0,
+        deviceInfo,
+        deviceName, // Use deviceName instead of deviceId
+        error: errorMessage,
+      };
       localHeartbeats.push(newHeartbeat);
       setHeartbeats([...localHeartbeats]);
 

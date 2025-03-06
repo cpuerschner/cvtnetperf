@@ -7,6 +7,7 @@ interface Heartbeat {
   latency: number;
   bandwidth: number;
   deviceInfo: string;
+  deviceName: string; // Changed from deviceId
   error?: string;
 }
 
@@ -78,7 +79,7 @@ const HeartbeatLog: React.FC<HeartbeatLogProps> = ({ heartbeats, latencySegments
                       Bandwidth: {hb.bandwidth.toFixed(2)} KB/s
                     </span>
                     <span className="heartbeat-device">
-                      Device: {hb.deviceInfo}
+                      Device: {hb.deviceInfo} ({hb.deviceName})
                     </span>
                   </>
                 )}
