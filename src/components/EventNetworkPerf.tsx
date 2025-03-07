@@ -98,7 +98,7 @@ const EventNetworkPerf: React.FC = () => {
   };
 
   const getColor = (value: number, segments: Segment[]): string => {
-    if (!segments.length) return '#666'; // Shouldn't hit this now with fallback
+    if (!segments.length) return '#666'; // Shouldn't hit this with fallback
     for (const segment of segments) {
       if (value <= segment.max) return segment.color;
     }
@@ -229,17 +229,6 @@ const EventNetworkPerf: React.FC = () => {
         const latencyColor = getColor(avgLatency, latencySegments);
         const bandwidthColor = getColor(avgBandwidth, bandwidthSegments);
 
-        console.log('Completion Averages:', {
-          avgLatency,
-          latencyColor,
-          maxValueLatency,
-          latencySegments,
-          avgBandwidth,
-          bandwidthColor,
-          maxBandwidth,
-          bandwidthSegments,
-        });
-
         setStatus(`
           <div>Start Time: ${monitorBeganAt}</div>
           <div class="timestamp">End Time: ${new Date().toLocaleString()}</div>
@@ -294,17 +283,6 @@ const EventNetworkPerf: React.FC = () => {
 
         const latencyColor = getColor(avgLatency, latencySegments);
         const bandwidthColor = getColor(avgBandwidth, bandwidthSegments);
-
-        console.log('Error Completion Averages:', {
-          avgLatency,
-          latencyColor,
-          maxValueLatency,
-          latencySegments,
-          avgBandwidth,
-          bandwidthColor,
-          maxBandwidth,
-          bandwidthSegments,
-        });
 
         setStatus(`
           <div>Start Time: ${monitorBeganAt}</div>
