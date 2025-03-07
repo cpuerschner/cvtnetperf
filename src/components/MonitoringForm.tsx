@@ -2,49 +2,123 @@
 import React, { useState } from 'react';
 import '../styles/MonitoringForm.css';
 
-// Define props interface
+interface RequestConfig {
+  method: string;
+  headers: Record<string, string>;
+  body?: string;
+}
+
 interface MonitoringFormProps {
   apiUrl: string;
+  requestConfig: RequestConfig;
   intervalSeconds: number;
   durationSeconds: number;
   maxValueLatency: number;
-  onSubmit: (apiUrl: string, intervalSeconds: string, durationSeconds: string, maxValueLatency: string) => void;
+  onSubmit: (
+    apiUrl: string,
+    requestConfig: RequestConfig,
+    intervalSeconds: string,
+    durationSeconds: string,
+    maxValueLatency: string
+  ) => void;
 }
 
 const MonitoringForm: React.FC<MonitoringFormProps> = ({
-  apiUrl,
-  intervalSeconds,
-  durationSeconds,
-  maxValueLatency,
+  apiUrl: initialApiUrl,
+  requestConfig: initialRequestConfig,
+  intervalSeconds: initialIntervalSeconds,
+  durationSeconds: initialDurationSeconds,
+  maxValueLatency: initialMaxValueLatency,
   onSubmit,
 }) => {
-  const [formApiUrl, setFormApiUrl] = useState<string>(apiUrl);
-  const [formIntervalSeconds, setFormIntervalSeconds] = useState<string>(intervalSeconds.toString());
-  const [formDurationSeconds, setFormDurationSeconds] = useState<string>(durationSeconds.toString());
-  const [formMaxValueLatency, setFormMaxValueLatency] = useState<string>(maxValueLatency.toString());
+  const [formCurl, setFormCurl] = useState<string>(
+    `curl --location '${initialApiUrl}'` +
+    (initialRequestConfig.method !== 'GET' ? ` --request ${initialRequestConfig.method}` : '') +
+    Object.entries(initialRequestConfig.headers).map(([key, value]) => ` --header '${key}: ${value}'`).join('') +
+    (initialRequestConfig.body ? ` --data '${initialRequestConfig.body}'` : '')
+  );
+  const [formIntervalSeconds, setFormIntervalSeconds] = useState<string>(initialIntervalSeconds.toString());
+  const [formDurationSeconds, setFormDurationSeconds] = useState<string>(initialDurationSeconds.toString());
+  const [formMaxValueLatency, setFormMaxValueLatency] = useState<string>(initialMaxValueLatency.toString());
+
+  const parseCurlCommand = (curl: string): { apiUrl: string; requestConfig: RequestConfig } => {
+    try {
+      // Remove 'curl' and split into parts
+      const parts = curl.replace(/^curl\s+/, '').split(/\s+/);
+
+      let apiUrl = '';
+      let method = 'GET';
+      const headers: Record<string, string> = {};
+      let body = '';
+
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+
+        // URL (assumes it's quoted or unquoted after --location or first arg)
+        if ((part === '--location' || part === '-L') && i + 1 < parts.length) {
+          apiUrl = parts[++i].replace(/^['"]|['"]$/g, '');
+        } else if (!part.startsWith('-') && !apiUrl && i === 0) {
+          apiUrl = part.replace(/^['"]|['"]$/g, '');
+        }
+
+        // Method
+        if ((part === '--request' || part === '-X') && i + 1 < parts.length) {
+          method = parts[++i];
+        }
+
+        // Headers
+        if ((part === '--header' || part === '-H') && i + 1 < parts.length) {
+          const header = parts[++i].replace(/^['"]|['"]$/g, '');
+          const [key, value] = header.split(/:\s*(.+)/);
+          if (key && value) headers[key] = value;
+        }
+
+        // Body
+        if ((part === '--data' || part === '-d') && i + 1 < parts.length) {
+          body = parts[++i].replace(/^['"]|['"]$/g, '');
+          // Handle multi-line body by collecting until next flag
+          while (i + 1 < parts.length && !parts[i + 1].startsWith('-')) {
+            body += ' ' + parts[++i];
+          }
+        }
+      }
+
+      if (!apiUrl) throw new Error('No URL found in curl command');
+
+      const requestConfig: RequestConfig = {
+        method,
+        headers: headers['Content-Type'] ? headers : { ...headers, 'Content-Type': 'application/json' },
+        body: body || undefined,
+      };
+
+      return { apiUrl, requestConfig };
+    } catch (error) {
+      throw new Error(`Invalid curl command: ${(error as Error).message}`);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log('Submitting form with:', {
-      apiUrl: formApiUrl,
-      intervalSeconds: formIntervalSeconds,
-      durationSeconds: formDurationSeconds,
-      maxValueLatency: formMaxValueLatency,
-    });
-    onSubmit(formApiUrl, formIntervalSeconds, formDurationSeconds, formMaxValueLatency);
+    try {
+      const { apiUrl, requestConfig } = parseCurlCommand(formCurl);
+      console.log('Parsed curl:', { apiUrl, requestConfig });
+      onSubmit(apiUrl, requestConfig, formIntervalSeconds, formDurationSeconds, formMaxValueLatency);
+    } catch (error) {
+      alert(error.message);
+    }
   };
 
   return (
     <form id="apiForm" onSubmit={handleSubmit} className="monitoring-form">
       <div className="form-group">
-        <label htmlFor="apiUrl" className="form-label">API URL:</label>
-        <input
-          type="text"
-          id="apiUrl"
-          placeholder="Enter API URL (e.g., https://jsonplaceholder.typicode.com/posts/1)"
-          value={formApiUrl}
-          onChange={(e) => setFormApiUrl(e.target.value)}
-          className="url-input"
+        <label htmlFor="curlInput" className="form-label">Curl Command:</label>
+        <textarea
+          id="curlInput"
+          value={formCurl}
+          onChange={(e) => setFormCurl(e.target.value)}
+          placeholder="Paste your curl command here, e.g., curl --location 'https://example.com' --header 'Content-Type: application/json' --data '{}'"
+          className="curl-input"
+          rows={6}
         />
       </div>
       <div className="form-group">

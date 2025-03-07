@@ -12,7 +12,7 @@ interface Heartbeat {
   latency: number;
   bandwidth: number;
   deviceInfo: string;
-  deviceName: string; // Changed from deviceId to deviceName
+  deviceName: string;
   error?: string;
 }
 
@@ -22,8 +22,18 @@ interface Segment {
   label: string;
 }
 
+interface RequestConfig {
+  method: string;
+  headers: Record<string, string>;
+  body?: string;
+}
+
 const EventNetworkPerf: React.FC = () => {
   const [apiUrl, setApiUrl] = useState<string>('https://jsonplaceholder.typicode.com/posts/1');
+  const [requestConfig, setRequestConfig] = useState<RequestConfig>({
+    method: 'GET',
+    headers: { 'Accept': 'application/json' },
+  });
   const [intervalSeconds, setIntervalSeconds] = useState<number>(2);
   const [durationSeconds, setDurationSeconds] = useState<number>(30);
   const [maxValueLatency, setMaxValueLatency] = useState<number>(250);
@@ -32,12 +42,11 @@ const EventNetworkPerf: React.FC = () => {
   const [avgLatency, setAvgLatency] = useState<number>(0);
   const [avgBandwidth, setAvgBandwidth] = useState<number>(0);
   const [maxBandwidth, setMaxBandwidth] = useState<number | null>(null);
-  const [status, setStatus] = useState<string>('Enter an API URL, interval, and duration, then click "Start Monitoring"');
+  const [status, setStatus] = useState<string>('Enter a curl command, interval, and duration, then click "Start Monitoring"');
   const [heartbeats, setHeartbeats] = useState<Heartbeat[]>([]);
   const [isMonitoring, setIsMonitoring] = useState<boolean>(false);
   const [isInfoCollapsed, setIsInfoCollapsed] = useState<boolean>(true);
   const [deviceName, setDeviceName] = useState<string>(() => {
-    // Get or prompt for deviceName
     const storedName = localStorage.getItem('deviceName');
     if (storedName) return storedName;
     const name = prompt('Enter device location (e.g., North, South, East, West):');
@@ -99,28 +108,33 @@ const EventNetworkPerf: React.FC = () => {
     setAvgLatency(0);
     setAvgBandwidth(0);
     setMaxBandwidth(null);
-    setStatus('Enter an API URL, interval, and duration, then click "Start Monitoring"');
+    setApiUrl('https://jsonplaceholder.typicode.com/posts/1'); // Reset apiUrl too
+    setRequestConfig({ method: 'GET', headers: { 'Accept': 'application/json' } });
+    setStatus('Enter a curl command, interval, and duration, then click "Start Monitoring"');
   };
 
   const startMonitoring = (
     newApiUrl: string,
+    newRequestConfig: RequestConfig,
     newIntervalSeconds: string,
     newDurationSeconds: string,
     newMaxValueLatency: string
   ): void => {
     console.log('Starting monitoring with:', {
       apiUrl: newApiUrl,
+      requestConfig: newRequestConfig,
       intervalSeconds: newIntervalSeconds,
       durationSeconds: newDurationSeconds,
       maxValueLatency: newMaxValueLatency,
     });
-    setApiUrl(newApiUrl);
-    setIntervalSeconds(parseInt(newIntervalSeconds) || 2);
-    setDurationSeconds(parseInt(newDurationSeconds) || 30);
-    setMaxValueLatency(parseInt(newMaxValueLatency) || 250);
 
-    if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
+    // Clean requestConfig: remove body for GET/HEAD
+    const cleanedRequestConfig: RequestConfig = {
+      ...newRequestConfig,
+      body: (newRequestConfig.method === 'GET' || newRequestConfig.method === 'HEAD') ? undefined : newRequestConfig.body,
+    };
 
+    // Validation
     try {
       new URL(newApiUrl);
     } catch (e) {
@@ -146,24 +160,35 @@ const EventNetworkPerf: React.FC = () => {
       return;
     }
 
+    // Reset and set new state
     resetState();
+    setApiUrl(newApiUrl);
+    setRequestConfig(cleanedRequestConfig);
+    setIntervalSeconds(interval);
+    setDurationSeconds(duration);
+    setMaxValueLatency(latencyMax);
     setIsMonitoring(true);
     startTimeRef.current = Date.now();
 
-    measureApiResponseTime(true, [], interval, duration);
+    // Start monitoring with new values
+    measureApiResponseTime(true, [], interval, duration, newApiUrl, cleanedRequestConfig);
   };
 
   const measureApiResponseTime = async (
     forceRecalculate = false,
     localHeartbeats: Heartbeat[] = [],
     interval: number,
-    duration: number
+    duration: number,
+    currentApiUrl: string, // Required for all calls
+    currentRequestConfig: RequestConfig // Required for all calls
   ): Promise<void> => {
     console.log('Measuring with params:', {
-      apiUrl,
+      apiUrl: currentApiUrl,
+      requestConfig: currentRequestConfig,
       interval,
       duration,
     });
+
     if (interval <= 0 || duration <= 0) {
       console.error('Invalid interval or duration detected:', { interval, duration });
       return;
@@ -171,12 +196,13 @@ const EventNetworkPerf: React.FC = () => {
 
     try {
       const startTime = performance.now();
-      const response = await fetch(apiUrl, {
-        method: 'GET',
+      const response = await fetch(currentApiUrl, {
+        method: currentRequestConfig.method,
+        headers: currentRequestConfig.headers,
+        body: currentRequestConfig.body,
         mode: 'cors',
         cache: 'no-cache',
         credentials: 'omit',
-        headers: { 'Accept': 'application/json' },
       });
 
       const endTime = performance.now();
@@ -207,7 +233,7 @@ const EventNetworkPerf: React.FC = () => {
         latency: responseTime,
         bandwidth: bandwidthKBs,
         deviceInfo,
-        deviceName, // Use deviceName instead of deviceId
+        deviceName,
       };
       localHeartbeats.push(newHeartbeat);
       setHeartbeats([...localHeartbeats]);
@@ -228,7 +254,8 @@ const EventNetworkPerf: React.FC = () => {
         setAvgBandwidth(avgBandwidth);
         setStatus(`
           <div class="timestamp">Monitoring completed at: ${timestamp}</div>
-          <div>URL: ${apiUrl}</div>
+          <div>URL: ${currentApiUrl}</div>
+          <div>Method: ${currentRequestConfig.method}</div>
           <div>Interval: ${interval} seconds</div>
           <div>Duration: ${duration} seconds</div>
           <div>Total Heartbeats: ${totalHeartbeats}</div>
@@ -239,12 +266,13 @@ const EventNetworkPerf: React.FC = () => {
         setStatus(`
           <div class="timestamp">Last measured: ${timestamp}</div>
           <div>Status: Success</div>
-          <div>URL: ${apiUrl}</div>
+          <div>URL: ${currentApiUrl}</div>
+          <div>Method: ${currentRequestConfig.method}</div>
           <div>Interval: ${interval} seconds</div>
           <div>Elapsed: ${elapsedSeconds.toFixed(1)} / ${duration} seconds</div>
           <div>Heartbeats: ${localHeartbeats.length} / ${expectedHeartbeats}</div>
         `);
-        setTimeout(() => measureApiResponseTime(false, localHeartbeats, interval, duration), interval * 1000);
+        setTimeout(() => measureApiResponseTime(false, localHeartbeats, interval, duration, currentApiUrl, currentRequestConfig), interval * 1000);
       }
     } catch (error) {
       const timestamp = new Date().toLocaleTimeString();
@@ -261,7 +289,7 @@ const EventNetworkPerf: React.FC = () => {
         latency: 0,
         bandwidth: 0,
         deviceInfo,
-        deviceName, // Use deviceName instead of deviceId
+        deviceName,
         error: errorMessage,
       };
       localHeartbeats.push(newHeartbeat);
@@ -283,7 +311,8 @@ const EventNetworkPerf: React.FC = () => {
         setAvgBandwidth(avgBandwidth);
         setStatus(`
           <div class="timestamp">Monitoring completed at: ${timestamp}</div>
-          <div>URL: ${apiUrl}</div>
+          <div>URL: ${currentApiUrl}</div>
+          <div>Method: ${currentRequestConfig.method}</div>
           <div>Interval: ${interval} seconds</div>
           <div>Duration: ${duration} seconds</div>
           <div>Total Heartbeats: ${totalHeartbeats}</div>
@@ -294,12 +323,13 @@ const EventNetworkPerf: React.FC = () => {
         setStatus(`
           <div class="error">Error: ${errorMessage}</div>
           <div class="timestamp">Last attempted: ${timestamp}</div>
-          <div>URL: ${apiUrl}</div>
+          <div>URL: ${currentApiUrl}</div>
+          <div>Method: ${currentRequestConfig.method}</div>
           <div>Interval: ${interval} seconds</div>
           <div>Elapsed: ${elapsedSeconds.toFixed(1)} / ${duration} seconds</div>
           <div>Heartbeats: ${localHeartbeats.length} / ${expectedHeartbeats}</div>
         `);
-        setTimeout(() => measureApiResponseTime(false, localHeartbeats, interval, duration), interval * 1000);
+        setTimeout(() => measureApiResponseTime(false, localHeartbeats, interval, duration, currentApiUrl, currentRequestConfig), interval * 1000);
       }
     }
   };
@@ -318,6 +348,7 @@ const EventNetworkPerf: React.FC = () => {
       <h1>API Response Time Monitor</h1>
       <MonitoringForm 
         apiUrl={apiUrl} 
+        requestConfig={requestConfig}
         intervalSeconds={intervalSeconds} 
         durationSeconds={durationSeconds} 
         maxValueLatency={maxValueLatency} 
