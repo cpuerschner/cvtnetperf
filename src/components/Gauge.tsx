@@ -23,8 +23,13 @@ const Gauge: React.FC<GaugeProps> = ({ value, maxValue, segments, title }) => {
   const radius = 120;
 
   useEffect(() => {
-    const bgCtx = bgCanvasRef.current?.getContext('2d');
+    const bgCanvas = bgCanvasRef.current;
+    if (!bgCanvas) return;
+    const bgCtx = bgCanvas.getContext('2d');
     if (!bgCtx) return;
+
+    bgCanvas.width = 300;
+    bgCanvas.height = 200;
 
     bgCtx.clearRect(0, 0, 300, 200);
     bgCtx.beginPath();
@@ -77,6 +82,7 @@ const Gauge: React.FC<GaugeProps> = ({ value, maxValue, segments, title }) => {
           const x = centerX + textRadius * Math.cos(angle);
           const y = centerY + textRadius * Math.sin(angle);
           const label = formatLabel(marker, isBandwidth);
+          console.log(`Label ${label}: x=${x}, y=${y}`);
           return (
             <span
               key={`${title}-${marker}-${i}`}

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Gauge from './Gauge.tsx';
 import MonitoringForm from './MonitoringForm.tsx';
 import InfoPanel from './InfoPanel.tsx';
+import { RequestConfig } from '../types';
 import '../styles/EventNetworkPerf.css';
 
 interface Heartbeat {
@@ -20,20 +21,14 @@ interface Segment {
   label: string;
 }
 
-interface RequestConfig {
-  method: string;
-  headers: Record<string, string>;
-  body?: string;
-}
-
 const EventNetworkPerf: React.FC = () => {
   const [apiUrl, setApiUrl] = useState<string>('https://jsonplaceholder.typicode.com/posts/1');
   const [requestConfig, setRequestConfig] = useState<RequestConfig>({
     method: 'GET',
     headers: { 'Accept': 'application/json' },
   });
-  const [intervalSeconds, setIntervalSeconds] = useState<number>(2);
-  const [durationSeconds, setDurationSeconds] = useState<number>(30);
+  const [intervalSeconds, setIntervalSeconds] = useState<number>(0);
+  const [durationSeconds, setDurationSeconds] = useState<number>(0);
   const [maxValueLatency, setMaxValueLatency] = useState<number>(250);
   const [currentLatency, setCurrentLatency] = useState<number>(0);
   const [currentBandwidth, setCurrentBandwidth] = useState<number>(0);
@@ -66,7 +61,7 @@ const EventNetworkPerf: React.FC = () => {
   ], [maxValueLatency]);
 
   const bandwidthSegments: Segment[] = React.useMemo(() => {
-    const effectiveMax = maxBandwidth || 10; // Match gauge fallback
+    const effectiveMax = maxBandwidth || 10;
     return [
       { max: effectiveMax * 0.2, color: '#D32F2F', label: `Poor (0-${(effectiveMax * 0.2).toFixed(2)} KB/s)` },
       { max: effectiveMax * 0.4, color: '#FF5722', label: `Sub Par (${(effectiveMax * 0.2).toFixed(2)}-${(effectiveMax * 0.4).toFixed(2)} KB/s)` },
@@ -92,13 +87,13 @@ const EventNetworkPerf: React.FC = () => {
     setCurrentBandwidth(0);
     setAvgLatency(0);
     setAvgBandwidth(0);
-    // Keep maxBandwidth intact to avoid resetting segments
     setPayloadSize(null);
     setStatus('Enter a curl command, interval, and duration, then click "Start Monitoring"');
+    console.log('State reset');
   };
 
   const getColor = (value: number, segments: Segment[]): string => {
-    if (!segments.length) return '#666'; // Shouldn't hit this with fallback
+    if (!segments.length) return '#666';
     for (const segment of segments) {
       if (value <= segment.max) return segment.color;
     }
@@ -113,7 +108,15 @@ const EventNetworkPerf: React.FC = () => {
     newMaxValueLatency: string,
     formCurl: string
   ): void => {
-    console.log('Starting monitoring with:', { apiUrl: newApiUrl, requestConfig: newRequestConfig, intervalSeconds: newIntervalSeconds, durationSeconds: newDurationSeconds, maxValueLatency: newMaxValueLatency });
+    console.log('startMonitoring called with:', {
+      newApiUrl,
+      newRequestConfig,
+      newIntervalSeconds,
+      newDurationSeconds,
+      newMaxValueLatency,
+      formCurl,
+    });
+    console.log('Previous state:', { apiUrl, intervalSeconds, durationSeconds, maxValueLatency });
 
     const cleanedRequestConfig: RequestConfig = {
       ...newRequestConfig,
@@ -124,23 +127,37 @@ const EventNetworkPerf: React.FC = () => {
       new URL(newApiUrl);
     } catch (e) {
       setStatus(`<div class="error">Error: Invalid URL format</div>`);
+      console.log('Invalid URL:', newApiUrl);
       return;
     }
 
-    const interval = parseInt(newIntervalSeconds) || 2;
-    const duration = parseInt(newDurationSeconds) || 30;
+    const interval = parseInt(newIntervalSeconds);
+    const duration = parseInt(newDurationSeconds);
     const latencyMax = parseInt(newMaxValueLatency) || 250;
 
+    if (!newIntervalSeconds || isNaN(interval)) {
+      setStatus(`<div class="error">Error: Interval must be a valid number between 1 and 10 seconds</div>`);
+      console.log('Invalid interval:', newIntervalSeconds);
+      return;
+    }
+    if (!newDurationSeconds || isNaN(duration)) {
+      setStatus(`<div class="error">Error: Duration must be a valid number at least equal to the interval</div>`);
+      console.log('Invalid duration:', newDurationSeconds);
+      return;
+    }
     if (interval < 1 || interval > 10) {
       setStatus(`<div class="error">Error: Interval must be between 1 and 10 seconds</div>`);
+      console.log('Interval out of range:', interval);
       return;
     }
     if (duration < interval) {
       setStatus(`<div class="error">Error: Duration must be at least the interval length</div>`);
+      console.log('Duration less than interval:', { duration, interval });
       return;
     }
     if (latencyMax < 1 || latencyMax > 1000) {
       setStatus(`<div class="error">Error: Latency Max Value must be between 1 and 1000 ms</div>`);
+      console.log('Latency max out of range:', latencyMax);
       return;
     }
 
@@ -153,6 +170,12 @@ const EventNetworkPerf: React.FC = () => {
     setIsMonitoring(true);
     const monitorBeganAt = new Date().toLocaleString();
     startTimeRef.current = Date.now();
+
+    console.log('State updated:', { apiUrl: newApiUrl, intervalSeconds: interval, durationSeconds: duration, maxValueLatency: latencyMax });
+
+    monitoringIntervalRef.current = setInterval(() => {
+      measureApiResponseTime(false, heartbeats, interval, duration, newApiUrl, cleanedRequestConfig, formCurl, monitorBeganAt);
+    }, interval * 1000);
 
     measureApiResponseTime(true, [], interval, duration, newApiUrl, cleanedRequestConfig, formCurl, monitorBeganAt);
   };
@@ -197,7 +220,6 @@ const EventNetworkPerf: React.FC = () => {
       setCurrentBandwidth(bandwidthKBs);
       setPayloadSize(responseSize);
 
-      // Always update maxBandwidth to ensure segments are ready
       setMaxBandwidth(prev => Math.max(prev || 0, (responseSize / targetTime / 1024) * 2, 1));
 
       const deviceInfo = getDeviceInfo();
@@ -209,7 +231,7 @@ const EventNetworkPerf: React.FC = () => {
         deviceName,
       };
       localHeartbeats.push(newHeartbeat);
-      setHeartbeats([...localHeartbeats]);
+      setHeartbeats(prev => [...prev, newHeartbeat]);
 
       const elapsedSeconds = startTimeRef.current ? (Date.now() - startTimeRef.current) / 1000 : 0;
       const expectedHeartbeats = Math.floor(duration / interval) + 1;
@@ -251,9 +273,9 @@ const EventNetworkPerf: React.FC = () => {
           <div>Elapsed: ${elapsedSeconds.toFixed(1)} / ${duration} seconds</div>
           <div>Heartbeats: ${localHeartbeats.length} / ${expectedHeartbeats}</div>
         `);
-        setTimeout(() => measureApiResponseTime(false, localHeartbeats, interval, duration, currentApiUrl, currentRequestConfig, formCurl, monitorBeganAt), interval * 1000);
       }
     } catch (error) {
+      console.error('Fetch error:', error);
       const timestamp = new Date().toLocaleTimeString();
       let errorMessage = (error as Error).message;
       if (errorMessage.includes('CORS')) errorMessage += '<br><span class="error">Try a CORS-enabled API or use a proxy.</span>';
@@ -264,7 +286,7 @@ const EventNetworkPerf: React.FC = () => {
       const deviceInfo = getDeviceInfo();
       const newHeartbeat: Heartbeat = { timestamp, latency: 0, bandwidth: 0, deviceInfo, deviceName, error: errorMessage };
       localHeartbeats.push(newHeartbeat);
-      setHeartbeats([...localHeartbeats]);
+      setHeartbeats(prev => [...prev, newHeartbeat]);
 
       const elapsedSeconds = startTimeRef.current ? (Date.now() - startTimeRef.current) / 1000 : 0;
       const expectedHeartbeats = Math.floor(duration / interval) + 1;
@@ -306,7 +328,6 @@ const EventNetworkPerf: React.FC = () => {
           <div>Elapsed: ${elapsedSeconds.toFixed(1)} / ${duration} seconds</div>
           <div>Heartbeats: ${localHeartbeats.length} / ${expectedHeartbeats}</div>
         `);
-        setTimeout(() => measureApiResponseTime(false, localHeartbeats, interval, duration, currentApiUrl, currentRequestConfig, formCurl, monitorBeganAt), interval * 1000);
       }
     }
   };
@@ -352,7 +373,8 @@ const EventNetworkPerf: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  const heartbeatItems = React.useMemo(() => heartbeats.map((hb, index) => {
+  const displayedHeartbeats = React.useMemo(() => heartbeats.slice(-50), [heartbeats]);
+  const heartbeatItems = React.useMemo(() => displayedHeartbeats.map((hb, index) => {
     return (
       <li key={index} className="heartbeat-item">
         <span className="heartbeat-timestamp">{hb.timestamp}</span>
@@ -371,7 +393,7 @@ const EventNetworkPerf: React.FC = () => {
         )}
       </li>
     );
-  }), [heartbeats, latencySegments, bandwidthSegments]);
+  }), [displayedHeartbeats, latencySegments, bandwidthSegments]);
 
   useEffect(() => {
     return () => {
