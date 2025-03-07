@@ -2,14 +2,12 @@
 import React, { useEffect, useRef } from 'react';
 import '../styles/Gauge.css';
 
-// Define the Segment interface (matches EventNetworkPerf.tsx)
 interface Segment {
   max: number;
   color: string;
   label: string;
 }
 
-// Define props for Gauge
 interface GaugeProps {
   value: number;
   maxValue: number;
@@ -20,131 +18,90 @@ interface GaugeProps {
 const Gauge: React.FC<GaugeProps> = ({ value, maxValue, segments, title }) => {
   const bgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const needleRef = useRef<HTMLDivElement | null>(null);
-  const legendRef = useRef<HTMLDivElement | null>(null);
-
   const centerX = 150;
   const centerY = 160;
   const radius = 120;
 
   useEffect(() => {
-    const bgCanvas = bgCanvasRef.current;
-    if (!bgCanvas) return;
-
-    const bgCtx = bgCanvas.getContext('2d');
+    const bgCtx = bgCanvasRef.current?.getContext('2d');
     if (!bgCtx) return;
 
-    bgCtx.clearRect(0, 0, 300, 200); // Clear canvas to avoid overlap
-
-    // Draw base arc
+    bgCtx.clearRect(0, 0, 300, 200);
     bgCtx.beginPath();
     bgCtx.arc(centerX, centerY, radius, Math.PI, 2 * Math.PI, false);
     bgCtx.lineWidth = 20;
     bgCtx.strokeStyle = '#e0e0e0';
     bgCtx.stroke();
 
-    // Draw colored segment arcs
     let previousAngle = Math.PI;
-    segments.forEach((segment) => {
+    segments.forEach(segment => {
       const zonePercentage = Math.min(segment.max / maxValue, 1);
-      const endAngle = Math.PI + zonePercentage * Math.PI;
+      const endAngle = Math.PI + (zonePercentage * Math.PI);
       bgCtx.beginPath();
       bgCtx.arc(centerX, centerY, radius, previousAngle, endAngle, false);
       bgCtx.strokeStyle = segment.color;
       bgCtx.stroke();
       previousAngle = endAngle;
     });
-  }, [segments, maxValue, title]);
+  }, [segments, maxValue]);
 
   useEffect(() => {
-    const needle = needleRef.current;
-    if (needle) {
-      needle.style.transform = `rotate(-180deg)`; // Force -180° on mount
+    if (needleRef.current) {
+      const percentage = Math.min(value / maxValue, 1);
+      const rotationDegrees = -180 + (percentage * 180);
+      needleRef.current.style.transform = `rotate(${rotationDegrees}deg)`;
     }
-  }, [title]);
+  }, [value, maxValue]);
 
-  useEffect(() => {
-    const percentage = Math.min(value / maxValue, 1);
-    const rotationDegrees = -180 + percentage * 180;
-    const needle = needleRef.current;
-    if (needle) {
-      needle.style.transform = `rotate(${rotationDegrees}deg)`;
-    }
-  }, [value, maxValue, title]);
+  const markers = React.useMemo(() => segments.map(segment => segment.max), [segments]);
+  const formatLabel = React.useMemo(() => (marker: number, isBandwidth: boolean): string => 
+    isBandwidth ? marker.toFixed(2) : Math.round(marker).toString(), []);
 
-  useEffect(() => {
-    if (legendRef.current) {
-      // No console.log here, just maintain visibility check if needed later
-    }
-  }, [segments, title]);
-
-  // Dynamic label logic - use segment max values for markers
-  const markers = segments.map((segment) => segment.max);
-
-  // Function to format labels with consistent 2 decimal places for Bandwidth, matching gauge-value
-  const formatLabel = (marker: number, isBandwidth: boolean): string => {
-    if (isBandwidth) {
-      return Number(marker).toFixed(2).toString(); // Ensure 2 decimal places as string
-    }
-    return Math.round(marker).toString(); // Integers for Latency
-  };
-
-  // Sanitize title to remove spaces and special characters for valid CSS class
   const sanitizedTitle = title.toLowerCase().replace(/[\s()]/g, '');
+  const isBandwidth = title === 'Bandwidth';
 
   return (
-    <div className={`gauge-container-${sanitizedTitle}`} key={`${title}-${maxValue || Date.now()}`}>
+    <div className={`gauge-container-${sanitizedTitle}`}>
       <h2>{title}</h2>
       <div className="gauge">
-        <canvas className="gauge-background" width={300} height={200} ref={bgCanvasRef}></canvas>
-        <div className="gauge-pivot"></div>
-        <div
-          className="gauge-needle"
-          ref={needleRef}
-          style={{ transform: 'rotate(-180deg)' }}
-        ></div>
+        <canvas className="gauge-background" width="300" height="200" ref={bgCanvasRef} />
+        <div className="gauge-pivot" />
+        <div className="gauge-needle" ref={needleRef} style={{ transform: 'rotate(-180deg)' }} />
         <div className="gauge-value">
-          {value === 0 ? '0.00' : value.toFixed(2)} {title === 'Latency' ? 'ms' : 'KB/s'}
+          {value === 0 ? '0.00' : value.toFixed(2)} {isBandwidth ? 'KB/s' : 'ms'}
         </div>
-        {/* DOM Labels - Only show Bandwidth labels if maxValue is set */}
-        {title === 'Bandwidth' && !maxValue ? null : (
-          markers.map((marker, i) => {
-            const percentage = Math.min(marker / maxValue, 1);
-            const angle = Math.PI + percentage * Math.PI; // Position at segment boundary
-            const textRadius = radius + 20; // Position outside arc
-            const x = centerX + textRadius * Math.cos(angle);
-            const y = centerY + textRadius * Math.sin(angle);
-            // Format labels using the new function, matching gauge-value
-            const label = formatLabel(marker, title === 'Bandwidth');
-            return (
-              <span
-                key={`${title}-${marker}-${maxValue || Date.now()}`} // Unique key for each label
-                className={`gauge-label gauge-label-${sanitizedTitle}`}
-                style={{
-                  position: 'absolute',
-                  left: `${x}px`,
-                  top: `${y}px`,
-                  transform: 'translate(-50%, -50%)',
-                  whiteSpace: 'nowrap',
-                  fontSize: '9px',
-                  fontWeight: 'bold',
-                  textTransform: 'none',
-                  userSelect: 'none',
-                  // contenteditable: 'false', // Removed as it’s not a valid style prop; use attribute if needed
-                }}
-                // If you need contenteditable, add it as a prop, not in style
-                // contentEditable={false}
-                data-label={label}
-              >
-                {label}
-              </span>
-            );
-          })
-        )}
+        {isBandwidth && !maxValue ? null : markers.map((marker, i) => {
+          const percentage = Math.min(marker / maxValue, 1);
+          const angle = Math.PI + percentage * Math.PI;
+          const textRadius = radius + 20;
+          const x = centerX + textRadius * Math.cos(angle);
+          const y = centerY + textRadius * Math.sin(angle);
+          const label = formatLabel(marker, isBandwidth);
+          return (
+            <span
+              key={`${title}-${marker}-${i}`}
+              className={`gauge-label gauge-label-${sanitizedTitle}`}
+              style={{
+                position: 'absolute',
+                left: `${x}px`,
+                top: `${y}px`,
+                transform: 'translate(-50%, -50%)',
+                whiteSpace: 'nowrap',
+                fontSize: '9px',
+                fontWeight: 'bold',
+                userSelect: 'none',
+              }}
+              data-label={label}
+            >
+              {label}
+            </span>
+          );
+        })}
       </div>
-      <div className="gauge-legend" ref={legendRef}>
+      <div className="gauge-legend">
         {segments.map((zone, index) => (
           <div className="legend-item" key={index}>
-            <div className="legend-color" style={{ backgroundColor: zone.color }}></div>
+            <div className="legend-color" style={{ backgroundColor: zone.color }} />
             <span className="legend-label">{zone.label}</span>
           </div>
         ))}

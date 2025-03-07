@@ -1,43 +1,139 @@
 /* src/styles/EventNetworkPerf.css */
 .event-network-perf {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 1rem;
-  font-family: Arial, sans-serif;
 }
 
 h1 {
-  font-size: 2rem;
-  margin-bottom: 1rem;
+  font-size: 1.125rem;
   color: #333;
+  text-align: center;
 }
 
 .gauges-container {
   display: flex;
-  gap: 2rem;
+  justify-content: space-around;
   flex-wrap: wrap;
-  justify-content: center;
+  gap: 1rem;
 }
 
-/* Tablet responsiveness */
-@media (max-width: 1024px) {
-  .gauges-container {
-    gap: 1rem;
-  }
+.monitoring-info {
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-radius: 5px;
 }
 
-/* Mobile responsiveness */
-@media (max-width: 768px) {
-  .event-network-perf {
-    padding: 0.5rem;
-  }
+.toggle-button {
+  padding: 0.5rem 1rem;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+  text-align: center;
+  font-size: 0.6875rem;
+}
 
-  h1 {
-    font-size: 1.5rem;
-  }
+.toggle-button:hover {
+  background-color: #0056b3;
+}
 
-  .gauges-container {
-    flex-direction: column;
-    align-items: center;
-  }
+.monitoring-info-content {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.device-payload-info h3,
+.heartbeat-list h3 {
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.device-payload-info ul {
+  list-style: none;
+  padding: 0;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.info-label {
+  font-weight: bold;
+  color: #000000; /* Black, was #333 */
+  margin-right: 0.5rem;
+  font-size: 0.6875rem;
+}
+
+.info-value {
+  color: #000000; /* Black, was #006400 (green) */
+  font-weight: 500;
+  font-size: 0.6875rem;
+}
+
+.heartbeat-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.export-button {
+  padding: 0.5rem 1rem;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  font-size: 0.6875rem;
+}
+
+.export-button:hover {
+  background-color: #218838;
+}
+
+.export-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.heartbeat-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.heartbeat-timestamp {
+  font-weight: bold;
+  color: #333;
+  margin-right: 1rem;
+  font-size: 0.6875rem;
+}
+
+.heartbeat-latency,
+.heartbeat-bandwidth,
+.heartbeat-device {
+  margin-right: 1rem;
+  font-weight: 500;
+  font-size: 0.6875rem;
+}
+
+.heartbeat-error {
+  color: #d32f2f; /* Remains red for errors */
+  font-weight: 500;
+  font-size: 0.6875rem;
 }

@@ -1,4 +1,4 @@
-/* src/components/Gauge.css */
+/* src/styles/Gauge.css */
 .gauge-container {
   margin: 1rem;
   text-align: center;
@@ -42,7 +42,7 @@
   left: 50%;
   transform: translateX(-50%);
   font-weight: 500;
-  font-size: 1.2rem;
+  font-size: 0.6875rem; /* 11pt */
   color: #333;
   background: rgba(255, 255, 255, 0.8);
   padding: 0.25rem 0.75rem;
@@ -98,7 +98,7 @@
 .gauge-label-latency,
 .gauge-label-bandwidth {
   position: absolute;
-  font-size: 9px;
+  font-size: 0.6875rem; /* 11pt, was 9px (~0.5625rem) */
   color: #333;
   font-weight: bold;
   z-index: 5;
@@ -132,12 +132,12 @@
 }
 
 .legend-label {
-  font-size: 0.75rem;
+  font-size: 0.6875rem; /* 11pt, was 0.75rem */
   color: #333;
 }
 
 h2 {
-  font-size: 1.5rem;
+  font-size: 0.6875rem; /* 11pt, was 1.5rem */
   margin: 0.75rem 0;
   font-weight: 500;
 }
@@ -154,11 +154,11 @@ h2 {
   }
 
   .gauge-value {
-    font-size: 1rem;
+    font-size: 0.6875rem; /* 11pt, was 1rem */
   }
 
   h2 {
-    font-size: 1.25rem;
+    font-size: 0.6875rem; /* 11pt, was 1.25rem */
   }
 }
 

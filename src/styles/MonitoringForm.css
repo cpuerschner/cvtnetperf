@@ -1,9 +1,16 @@
 /* src/styles/MonitoringForm.css */
+.monitoring-form-container {
+  padding: .8rem;
+  background-color: #f9f9f9;
+  border-radius: 5px;
+  margin-bottom: 1rem;
+  font-size: 1rem; /* Container base, overridden by children */
+}
+
 .monitoring-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 1rem;
+  gap: .8rem;
 }
 
 .form-group {
@@ -14,20 +21,37 @@
 .form-label {
   font-weight: bold;
   margin-bottom: 0.5rem;
+  color: #333;
+  font-size: 0.6875rem; /* 11pt */
 }
 
 .curl-input {
   padding: 0.5rem;
-  font-size: 1rem;
+  font-size: 0.6875rem; /* 11pt */
   font-family: monospace;
   resize: vertical;
   width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 3px;
 }
 
 .numeric-input {
   padding: 0.5rem;
-  font-size: 1rem;
+  font-size: 0.6875rem; /* 11pt */
   width: 100px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+}
+
+.form-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.form-unit {
+  font-size: 0.6875rem; /* 11pt */
+  color: #666;
 }
 
 .start-button {
@@ -35,7 +59,10 @@
   background-color: #007bff;
   color: white;
   border: none;
+  border-radius: 3px;
   cursor: pointer;
+  font-weight: bold;
+  font-size: 0.6875rem; /* 11pt */
 }
 
 .start-button:hover {
