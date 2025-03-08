@@ -1,27 +1,49 @@
 /* src/styles/InfoPanel.css */
 .info-panel {
-  padding: 0;
+  padding: 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background: #fff;
+  text-align: left; /* Left-align */
 }
 
 .info-panel h3 {
-  font-size: 0.875rem;
-  margin-bottom: 0.5rem;
+  font-size: 12px; /* ~9pt */
+  margin: 0 0 8px;
   color: #333;
 }
 
 .info-panel ul {
   list-style: none;
   padding: 0;
+  margin: 0;
 }
 
-/* .info-item, .info-label, .info-value are inherited from EventNetworkPerf.css */
-.info-value.error {
-  color: #d32f2f; /* Remains red for CORS errors */
+.info-panel .info-item {
+  display: flex;
+  justify-content: flex-start; /* Left-align */
+  padding: 4px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.info-panel .info-label {
+  font-weight: bold;
+  color: #555;
+  margin-right: 10px;
+  min-width: 120px; /* Consistent width */
+}
+
+.info-panel .info-value {
+  color: #333;
+}
+
+.info-panel .info-value.error {
+  color: #d32f2f;
   font-weight: 500;
-  font-size: 0.6875rem;
+  font-size: 11px; /* Match */
 }
 
-.info-value.curl-command-scrollable {
+.info-panel .info-value.curl-command-scrollable {
   display: block;
   max-width: 500px;
   max-height: 100px;
@@ -31,8 +53,8 @@
   background-color: #f0f0f0;
   border-radius: 3px;
   font-family: monospace;
-  font-size: 0.6875rem;
-  color: #000000; /* Black, was #006400 (green) */
+  font-size: 11px; /* Match */
+  color: #000000;
   font-weight: 500;
   line-height: 1.2;
 }

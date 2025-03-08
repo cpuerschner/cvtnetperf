@@ -82,7 +82,7 @@ const Gauge: React.FC<GaugeProps> = ({ value, maxValue, segments, title }) => {
           const x = centerX + textRadius * Math.cos(angle);
           const y = centerY + textRadius * Math.sin(angle);
           const label = formatLabel(marker, isBandwidth);
-          console.log(`Label ${label}: x=${x}, y=${y}`);
+          //console.log(`Label ${label}: x=${x}, y=${y}`);
           return (
             <span
               key={`${title}-${marker}-${i}`}

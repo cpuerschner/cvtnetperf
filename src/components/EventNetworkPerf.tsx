@@ -3,23 +3,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import Gauge from './Gauge.tsx';
 import MonitoringForm from './MonitoringForm.tsx';
 import InfoPanel from './InfoPanel.tsx';
-import { RequestConfig } from '../types';
+import HeartbeatLog from './HeartbeatLog.tsx';
+import { RequestConfig, Heartbeat, Segment } from '../types';
 import '../styles/EventNetworkPerf.css';
-
-interface Heartbeat {
-  timestamp: string;
-  latency: number;
-  bandwidth: number;
-  deviceInfo: string;
-  deviceName: string;
-  error?: string;
-}
-
-interface Segment {
-  max: number;
-  color: string;
-  label: string;
-}
 
 const EventNetworkPerf: React.FC = () => {
   const [apiUrl, setApiUrl] = useState<string>('https://jsonplaceholder.typicode.com/posts/1');
@@ -27,6 +13,7 @@ const EventNetworkPerf: React.FC = () => {
     method: 'GET',
     headers: { 'Accept': 'application/json' },
   });
+  const [formCurl, setFormCurl] = useState<string>('');
   const [intervalSeconds, setIntervalSeconds] = useState<number>(0);
   const [durationSeconds, setDurationSeconds] = useState<number>(0);
   const [maxValueLatency, setMaxValueLatency] = useState<number>(250);
@@ -40,7 +27,7 @@ const EventNetworkPerf: React.FC = () => {
   const [heartbeats, setHeartbeats] = useState<Heartbeat[]>([]);
   const [isMonitoring, setIsMonitoring] = useState<boolean>(false);
   const [isInfoCollapsed, setIsInfoCollapsed] = useState<boolean>(true);
-  const [deviceName, setDeviceName] = useState<string>(() => {
+  const [deviceName] = useState<string>(() => {
     const storedName = localStorage.getItem('deviceName');
     if (storedName) return storedName;
     const name = prompt('Enter device location (e.g., North, South, East, West):')?.trim() || 'Unknown';
@@ -48,11 +35,10 @@ const EventNetworkPerf: React.FC = () => {
     return name;
   });
   const monitoringIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef = useRef<number | null>(null);
-
+  const monitoringTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const targetTime = 0.1;
 
-  const latencySegments: Segment[] = React.useMemo(() => [
+  const latencySegments = React.useMemo<Segment[]>(() => [
     { max: maxValueLatency * 0.2, color: '#006400', label: 'Great (0-20%)' },
     { max: maxValueLatency * 0.4, color: '#4CAF50', label: 'Good (20-40%)' },
     { max: maxValueLatency * 0.6, color: '#FFC107', label: 'Moderate (40-60%)' },
@@ -60,7 +46,7 @@ const EventNetworkPerf: React.FC = () => {
     { max: maxValueLatency, color: '#D32F2F', label: 'Poor (80-100%)' },
   ], [maxValueLatency]);
 
-  const bandwidthSegments: Segment[] = React.useMemo(() => {
+  const bandwidthSegments = React.useMemo<Segment[]>(() => {
     const effectiveMax = maxBandwidth || 10;
     return [
       { max: effectiveMax * 0.2, color: '#D32F2F', label: `Poor (0-${(effectiveMax * 0.2).toFixed(2)} KB/s)` },
@@ -89,7 +75,6 @@ const EventNetworkPerf: React.FC = () => {
     setAvgBandwidth(0);
     setPayloadSize(null);
     setStatus('Enter a curl command, interval, and duration, then click "Start Monitoring"');
-    console.log('State reset');
   };
 
   const getColor = (value: number, segments: Segment[]): string => {
@@ -100,6 +85,39 @@ const EventNetworkPerf: React.FC = () => {
     return segments[segments.length - 1].color;
   };
 
+  const validateInputs = (
+    newApiUrl: string,
+    newIntervalSeconds: string,
+    newDurationSeconds: string,
+    newMaxValueLatency: string
+  ): { interval: number; duration: number; latencyMax: number } | null => {
+    try {
+      new URL(newApiUrl);
+    } catch {
+      setStatus(`<div className="error">Error: Invalid URL format</div>`);
+      return null;
+    }
+
+    const interval = parseInt(newIntervalSeconds);
+    const duration = parseInt(newDurationSeconds);
+    const latencyMax = parseInt(newMaxValueLatency) || 250;
+
+    if (isNaN(interval) || interval < 1 || interval > 10) {
+      setStatus(`<div className="error">Error: Interval must be a number between 1 and 10 seconds</div>`);
+      return null;
+    }
+    if (isNaN(duration) || duration < interval) {
+      setStatus(`<div className="error">Error: Duration must be a number at least equal to the interval</div>`);
+      return null;
+    }
+    if (latencyMax < 1 || latencyMax > 1000) {
+      setStatus(`<div className="error">Error: Latency Max Value must be between 1 and 1000 ms</div>`);
+      return null;
+    }
+
+    return { interval, duration, latencyMax };
+  };
+
   const startMonitoring = (
     newApiUrl: string,
     newRequestConfig: RequestConfig,
@@ -108,103 +126,135 @@ const EventNetworkPerf: React.FC = () => {
     newMaxValueLatency: string,
     formCurl: string
   ): void => {
-    console.log('startMonitoring called with:', {
-      newApiUrl,
-      newRequestConfig,
-      newIntervalSeconds,
-      newDurationSeconds,
-      newMaxValueLatency,
-      formCurl,
-    });
-    console.log('Previous state:', { apiUrl, intervalSeconds, durationSeconds, maxValueLatency });
+    const validated = validateInputs(newApiUrl, newIntervalSeconds, newDurationSeconds, newMaxValueLatency);
+    if (!validated) return;
 
+    const { interval, duration, latencyMax } = validated;
     const cleanedRequestConfig: RequestConfig = {
       ...newRequestConfig,
       body: (newRequestConfig.method === 'GET' || newRequestConfig.method === 'HEAD') ? undefined : newRequestConfig.body,
     };
 
-    try {
-      new URL(newApiUrl);
-    } catch (e) {
-      setStatus(`<div class="error">Error: Invalid URL format</div>`);
-      console.log('Invalid URL:', newApiUrl);
-      return;
-    }
-
-    const interval = parseInt(newIntervalSeconds);
-    const duration = parseInt(newDurationSeconds);
-    const latencyMax = parseInt(newMaxValueLatency) || 250;
-
-    if (!newIntervalSeconds || isNaN(interval)) {
-      setStatus(`<div class="error">Error: Interval must be a valid number between 1 and 10 seconds</div>`);
-      console.log('Invalid interval:', newIntervalSeconds);
-      return;
-    }
-    if (!newDurationSeconds || isNaN(duration)) {
-      setStatus(`<div class="error">Error: Duration must be a valid number at least equal to the interval</div>`);
-      console.log('Invalid duration:', newDurationSeconds);
-      return;
-    }
-    if (interval < 1 || interval > 10) {
-      setStatus(`<div class="error">Error: Interval must be between 1 and 10 seconds</div>`);
-      console.log('Interval out of range:', interval);
-      return;
-    }
-    if (duration < interval) {
-      setStatus(`<div class="error">Error: Duration must be at least the interval length</div>`);
-      console.log('Duration less than interval:', { duration, interval });
-      return;
-    }
-    if (latencyMax < 1 || latencyMax > 1000) {
-      setStatus(`<div class="error">Error: Latency Max Value must be between 1 and 1000 ms</div>`);
-      console.log('Latency max out of range:', latencyMax);
-      return;
-    }
-
     resetState();
     setApiUrl(newApiUrl);
     setRequestConfig(cleanedRequestConfig);
+    setFormCurl(formCurl);
     setIntervalSeconds(interval);
     setDurationSeconds(duration);
     setMaxValueLatency(latencyMax);
     setIsMonitoring(true);
+
     const monitorBeganAt = new Date().toLocaleString();
-    startTimeRef.current = Date.now();
+    const startTime = Date.now();
+    let localHeartbeats: Heartbeat[] = [];
+    let isMonitoringLocal = true;
 
-    console.log('State updated:', { apiUrl: newApiUrl, intervalSeconds: interval, durationSeconds: duration, maxValueLatency: latencyMax });
+    const measure = async () => {
+      const elapsedSeconds = (Date.now() - startTime) / 1000;
+      console.log('Measure called, elapsed:', elapsedSeconds.toFixed(1), 'isMonitoring (state):', isMonitoring, 'isMonitoringLocal:', isMonitoringLocal);
+      if (elapsedSeconds > duration || !isMonitoringLocal) {
+        console.log('Measure stopped: elapsed > duration or not monitoring');
+        return;
+      }
 
-    monitoringIntervalRef.current = setInterval(() => {
-      measureApiResponseTime(false, heartbeats, interval, duration, newApiUrl, cleanedRequestConfig, formCurl, monitorBeganAt);
-    }, interval * 1000);
+      console.log('Calling measureApiResponseTime...');
+      const heartbeat = await measureApiResponseTime(newApiUrl, cleanedRequestConfig, formCurl, monitorBeganAt, startTime);
+      console.log('Heartbeat measured:', heartbeat);
+      localHeartbeats.push(heartbeat);
+      setHeartbeats([...localHeartbeats]);
+      console.log('Heartbeats state updated, count:', localHeartbeats.length);
+      setStatus(`
+        <div>Start Time: ${monitorBeganAt}</div>
+        <div className="timestamp">Last measured: ${heartbeat.timestamp}</div>
+        <div>Status: ${heartbeat.error ? 'Error' : 'Success'}</div>
+        <div>cURL: ${formCurl}</div>
+        <div>Method: ${cleanedRequestConfig.method}</div>
+        <div>Interval: ${interval} seconds</div>
+        <div>Elapsed: ${elapsedSeconds.toFixed(1)} / ${duration} seconds</div>
+        <div>Heartbeats: ${localHeartbeats.length} / ${Math.floor(duration / interval) + 1}</div>
+        ${heartbeat.error ? `<div className="error">Error: ${heartbeat.error}</div>` : ''}
+      `);
+    };
 
-    measureApiResponseTime(true, [], interval, duration, newApiUrl, cleanedRequestConfig, formCurl, monitorBeganAt);
+    console.log('Starting monitoring, initial isMonitoring:', isMonitoring);
+    measure().catch(error => console.error('Initial measure failed:', error));
+    monitoringIntervalRef.current = setInterval(measure, interval * 1000);
+    monitoringTimeoutRef.current = setTimeout(() => {
+      console.log('Stopping monitoring...');
+      isMonitoringLocal = false;
+      stopMonitoring(localHeartbeats, monitorBeganAt, formCurl, cleanedRequestConfig, interval, duration, false);
+    }, duration * 1000);
+
+    const stopManually = () => {
+      if (!isMonitoring) return;
+      console.log('Manual stop triggered');
+      isMonitoringLocal = false;
+      stopMonitoring(localHeartbeats, monitorBeganAt, formCurl, cleanedRequestConfig, interval, duration, true);
+    };
+    (startMonitoring as any).stopManually = stopManually;
+  };
+
+  const stopMonitoring = (
+    localHeartbeats: Heartbeat[],
+    monitorBeganAt: string,
+    formCurl: string,
+    requestConfig: RequestConfig,
+    interval: number,
+    duration: number,
+    userInitiated: boolean
+  ): void => {
+    if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
+    if (monitoringTimeoutRef.current) clearTimeout(monitoringTimeoutRef.current);
+    setIsMonitoring(false);
+
+    const avgLatency = localHeartbeats.length ? localHeartbeats.reduce((sum, hb) => sum + hb.latency, 0) / localHeartbeats.length : 0;
+    const avgBandwidth = localHeartbeats.length ? localHeartbeats.reduce((sum, hb) => sum + hb.bandwidth, 0) / localHeartbeats.length : 0;
+    setAvgLatency(avgLatency);
+    setAvgBandwidth(avgBandwidth);
+
+    const latencyColor = getColor(avgLatency, latencySegments);
+    const bandwidthColor = getColor(avgBandwidth, bandwidthSegments);
+    const endMessage = userInitiated ? '<div className="info">Monitoring stopped by user</div>' : '';
+    setStatus(`
+      <div>Start Time: ${monitorBeganAt}</div>
+      <div className="timestamp">End Time: ${new Date().toLocaleString()}</div>
+      ${endMessage}
+      <div>cURL: ${formCurl}</div>
+      <div>Method: ${requestConfig.method}</div>
+      <div>Interval: ${interval} seconds</div>
+      <div>Duration: ${duration} seconds</div>
+      <div>Total Heartbeats: ${localHeartbeats.length}</div>
+      <div>Average Latency: <span style="color: ${latencyColor}">${avgLatency.toFixed(2)} ms</span></div>
+      <div>Average Bandwidth: <span style="color: ${bandwidthColor}">${avgBandwidth.toFixed(2)} KB/s</span></div>
+    `);
   };
 
   const measureApiResponseTime = async (
-    forceRecalculate: boolean,
-    localHeartbeats: Heartbeat[],
-    interval: number,
-    duration: number,
-    currentApiUrl: string,
-    currentRequestConfig: RequestConfig,
+    apiUrl: string,
+    requestConfig: RequestConfig,
     formCurl: string,
-    monitorBeganAt: string
-  ): Promise<void> => {
-    console.log('Measuring with params:', { apiUrl: currentApiUrl, requestConfig: currentRequestConfig, interval, duration });
-
+    monitorBeganAt: string,
+    startTime: number
+  ): Promise<Heartbeat> => {
+    console.log('Fetching from:', apiUrl);
+    let errorMessage: string | undefined;
     try {
-      const startTime = performance.now();
-      const response = await fetch(currentApiUrl, {
-        method: currentRequestConfig.method,
-        headers: currentRequestConfig.headers,
-        body: currentRequestConfig.body,
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const start = performance.now();
+      const response = await fetch(apiUrl, {
+        method: requestConfig.method,
+        headers: requestConfig.headers,
+        body: requestConfig.body,
         mode: 'cors',
         cache: 'no-cache',
         credentials: 'omit',
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
-      const endTime = performance.now();
-      const responseTime = endTime - startTime;
+      const end = performance.now();
+      const responseTime = end - start;
 
       if (!response.ok) {
         throw new Error(response.status === 0 ? 'CORS preflight request failed' : `HTTP error! status: ${response.status}`);
@@ -215,121 +265,43 @@ const EventNetworkPerf: React.FC = () => {
       const timeInSeconds = responseTime / 1000;
       const bandwidthKBs = responseSize / timeInSeconds / 1024;
 
-      const timestamp = new Date().toLocaleTimeString();
       setCurrentLatency(responseTime);
       setCurrentBandwidth(bandwidthKBs);
       setPayloadSize(responseSize);
-
       setMaxBandwidth(prev => Math.max(prev || 0, (responseSize / targetTime / 1024) * 2, 1));
 
-      const deviceInfo = getDeviceInfo();
-      const newHeartbeat: Heartbeat = {
-        timestamp,
+      return {
+        timestamp: new Date().toLocaleTimeString(),
         latency: responseTime,
         bandwidth: bandwidthKBs,
-        deviceInfo,
+        deviceInfo: getDeviceInfo(),
         deviceName,
       };
-      localHeartbeats.push(newHeartbeat);
-      setHeartbeats(prev => [...prev, newHeartbeat]);
-
-      const elapsedSeconds = startTimeRef.current ? (Date.now() - startTimeRef.current) / 1000 : 0;
-      const expectedHeartbeats = Math.floor(duration / interval) + 1;
-
-      if (localHeartbeats.length >= expectedHeartbeats || elapsedSeconds >= duration) {
-        if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
-        monitoringIntervalRef.current = null;
-        setIsMonitoring(false);
-
-        const totalHeartbeats = localHeartbeats.length;
-        const avgLatency = localHeartbeats.reduce((sum, hb) => sum + hb.latency, 0) / totalHeartbeats;
-        const avgBandwidth = localHeartbeats.reduce((sum, hb) => sum + hb.bandwidth, 0) / totalHeartbeats;
-
-        setAvgLatency(avgLatency);
-        setAvgBandwidth(avgBandwidth);
-
-        const latencyColor = getColor(avgLatency, latencySegments);
-        const bandwidthColor = getColor(avgBandwidth, bandwidthSegments);
-
-        setStatus(`
-          <div>Start Time: ${monitorBeganAt}</div>
-          <div class="timestamp">End Time: ${new Date().toLocaleString()}</div>
-          <div>cURL: ${formCurl}</div>
-          <div>Method: ${currentRequestConfig.method}</div>
-          <div>Interval: ${interval} seconds</div>
-          <div>Duration: ${duration} seconds</div>
-          <div>Total Heartbeats: ${totalHeartbeats}</div>
-          <div>Average Latency: <span style="color: ${latencyColor}">${avgLatency.toFixed(2)} ms</span></div>
-          <div>Average Bandwidth: <span style="color: ${bandwidthColor}">${avgBandwidth.toFixed(2)} KB/s</span></div>
-        `);
-      } else {
-        setStatus(`
-          <div>Start Time: ${monitorBeganAt}</div>
-          <div class="timestamp">Last measured: ${timestamp}</div>
-          <div>Status: Success</div>
-          <div>cURL: ${formCurl}</div>
-          <div>Method: ${currentRequestConfig.method}</div>
-          <div>Interval: ${interval} seconds</div>
-          <div>Elapsed: ${elapsedSeconds.toFixed(1)} / ${duration} seconds</div>
-          <div>Heartbeats: ${localHeartbeats.length} / ${expectedHeartbeats}</div>
-        `);
-      }
     } catch (error) {
-      console.error('Fetch error:', error);
-      const timestamp = new Date().toLocaleTimeString();
-      let errorMessage = (error as Error).message;
-      if (errorMessage.includes('CORS')) errorMessage += '<br><span class="error">Try a CORS-enabled API or use a proxy.</span>';
+      errorMessage = (error as Error).message;
+      if (errorMessage === 'The operation was aborted') {
+        errorMessage = 'Fetch timed out after 3 seconds';
+      } else if (errorMessage.includes('CORS')) {
+        errorMessage += '<br><span className="error">Try a CORS-enabled API or use a proxy.</span>';
+      }
       setCurrentLatency(0);
       setCurrentBandwidth(0);
       setPayloadSize(null);
 
-      const deviceInfo = getDeviceInfo();
-      const newHeartbeat: Heartbeat = { timestamp, latency: 0, bandwidth: 0, deviceInfo, deviceName, error: errorMessage };
-      localHeartbeats.push(newHeartbeat);
-      setHeartbeats(prev => [...prev, newHeartbeat]);
-
-      const elapsedSeconds = startTimeRef.current ? (Date.now() - startTimeRef.current) / 1000 : 0;
-      const expectedHeartbeats = Math.floor(duration / interval) + 1;
-
-      if (localHeartbeats.length >= expectedHeartbeats || elapsedSeconds >= duration) {
-        if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
-        monitoringIntervalRef.current = null;
-        setIsMonitoring(false);
-
-        const totalHeartbeats = localHeartbeats.length;
-        const avgLatency = localHeartbeats.reduce((sum, hb) => sum + hb.latency, 0) / totalHeartbeats;
-        const avgBandwidth = localHeartbeats.reduce((sum, hb) => sum + hb.bandwidth, 0) / totalHeartbeats;
-
-        setAvgLatency(avgLatency);
-        setAvgBandwidth(avgBandwidth);
-
-        const latencyColor = getColor(avgLatency, latencySegments);
-        const bandwidthColor = getColor(avgBandwidth, bandwidthSegments);
-
-        setStatus(`
-          <div>Start Time: ${monitorBeganAt}</div>
-          <div class="timestamp">End Time: ${new Date().toLocaleString()}</div>
-          <div>cURL: ${formCurl}</div>
-          <div>Method: ${currentRequestConfig.method}</div>
-          <div>Interval: ${interval} seconds</div>
-          <div>Duration: ${duration} seconds</div>
-          <div>Total Heartbeats: ${totalHeartbeats}</div>
-          <div>Average Latency: <span style="color: ${latencyColor}">${avgLatency.toFixed(2)} ms</span></div>
-          <div>Average Bandwidth: <span style="color: ${bandwidthColor}">${avgBandwidth.toFixed(2)} KB/s</span></div>
-        `);
-      } else {
-        setStatus(`
-          <div>Start Time: ${monitorBeganAt}</div>
-          <div class="error">Error: ${errorMessage}</div>
-          <div class="timestamp">Last attempted: ${timestamp}</div>
-          <div>cURL: ${formCurl}</div>
-          <div>Method: ${currentRequestConfig.method}</div>
-          <div>Interval: ${interval} seconds</div>
-          <div>Elapsed: ${elapsedSeconds.toFixed(1)} / ${duration} seconds</div>
-          <div>Heartbeats: ${localHeartbeats.length} / ${expectedHeartbeats}</div>
-        `);
-      }
+      return {
+        timestamp: new Date().toLocaleTimeString(),
+        latency: 0,
+        bandwidth: 0,
+        deviceInfo: getDeviceInfo(),
+        deviceName,
+        error: errorMessage,
+      };
     }
+  };
+
+  const handleStopMonitoring = () => {
+    if (!isMonitoring) return;
+    (startMonitoring as any).stopManually();
   };
 
   const exportHeartbeatsToFile = () => {
@@ -357,9 +329,12 @@ const EventNetworkPerf: React.FC = () => {
       heartbeats,
       devicePayloadInfo: {
         deviceName,
-        payloadSize: payloadSize ? `${(payloadSize / 1024).toFixed(2)} KB` : 'N/A'
+        payloadSize: payloadSize ? `${(payloadSize / 1024).toFixed(2)} KB` : 'N/A',
       },
-      statusInfo
+      statusInfo: {
+        ...statusInfo,
+        stoppedByUser: status.includes('Monitoring stopped by user') ? 'true' : 'false',
+      },
     };
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json;charset=utf-8' });
@@ -373,31 +348,10 @@ const EventNetworkPerf: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  const displayedHeartbeats = React.useMemo(() => heartbeats.slice(-50), [heartbeats]);
-  const heartbeatItems = React.useMemo(() => displayedHeartbeats.map((hb, index) => {
-    return (
-      <li key={index} className="heartbeat-item">
-        <span className="heartbeat-timestamp">{hb.timestamp}</span>
-        {hb.error ? (
-          <span className="heartbeat-error">{hb.error}</span>
-        ) : (
-          <>
-            <span className="heartbeat-latency" style={{ color: getColor(hb.latency, latencySegments) }}>
-              Latency: {hb.latency.toFixed(2)} ms
-            </span>
-            <span className="heartbeat-bandwidth" style={{ color: getColor(hb.bandwidth, bandwidthSegments) }}>
-              Bandwidth: {hb.bandwidth.toFixed(2)} KB/s
-            </span>
-            <span className="heartbeat-device">Device: {hb.deviceInfo} ({hb.deviceName})</span>
-          </>
-        )}
-      </li>
-    );
-  }), [displayedHeartbeats, latencySegments, bandwidthSegments]);
-
   useEffect(() => {
     return () => {
       if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
+      if (monitoringTimeoutRef.current) clearTimeout(monitoringTimeoutRef.current);
     };
   }, []);
 
@@ -423,6 +377,16 @@ const EventNetworkPerf: React.FC = () => {
         <button onClick={() => setIsInfoCollapsed(!isInfoCollapsed)} className="toggle-button">
           {isInfoCollapsed ? 'Show Monitoring Info' : 'Hide Monitoring Info'}
         </button>
+        {isMonitoring && (
+          <button onClick={handleStopMonitoring} className="stop-button">
+            Stop Monitoring
+          </button>
+        )}
+        {!isMonitoring && heartbeats.length > 0 && (
+          <button onClick={exportHeartbeatsToFile} className="export-button">
+            Export Session
+          </button>
+        )}
         {!isInfoCollapsed && (
           <div className="monitoring-info-content">
             <div className="device-payload-info">
@@ -439,17 +403,12 @@ const EventNetworkPerf: React.FC = () => {
               </ul>
             </div>
             <InfoPanel status={status} isInfoCollapsed={false} onToggle={() => {}} />
-            <div className="heartbeat-list">
-              <button onClick={exportHeartbeatsToFile} disabled={!heartbeats.length} className="export-button">
-                Export Heartbeats to File
-              </button>
-              {heartbeats.length > 0 && (
-                <>
-                  <h3>Heartbeat Log</h3>
-                  <ul>{heartbeatItems}</ul>
-                </>
-              )}
-            </div>
+            <HeartbeatLog
+              heartbeats={heartbeats}
+              latencySegments={latencySegments}
+              bandwidthSegments={bandwidthSegments}
+              onExport={() => {}} // Empty prop since button moved
+            />
           </div>
         )}
       </div>

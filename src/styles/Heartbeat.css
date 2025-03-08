@@ -1,0 +1,25 @@
+/* src/styles/Heartbeat.css */
+.heartbeat-item {
+  padding: 8px;
+  border-bottom: 1px solid #ddd;
+  font-size: 11px;
+  text-align: left; /* Ensure left */
+}
+
+.heartbeat-timestamp {
+  display: block;
+  font-weight: bold;
+  color: #007bff;
+}
+
+.heartbeat-latency,
+.heartbeat-bandwidth,
+.heartbeat-device {
+  display: block;
+  margin-top: 4px;
+}
+
+.heartbeat-error {
+  color: #dc3545;
+  font-style: italic;
+}

@@ -23,6 +23,7 @@
 }
 
 .gauge {
+  font-size: 12px;
   position: relative;
   display: inline-block;
   padding: 1rem;

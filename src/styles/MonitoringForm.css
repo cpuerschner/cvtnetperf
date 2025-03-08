@@ -1,70 +1,52 @@
 /* src/styles/MonitoringForm.css */
-.monitoring-form-container {
-  padding: .8rem;
-  background-color: #f9f9f9;
-  border-radius: 5px;
-  margin-bottom: 1rem;
-  font-size: 1rem; /* Container base, overridden by children */
-}
-
 .monitoring-form {
-  display: flex;
-  flex-direction: column;
-  gap: .8rem;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 25px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  font-size: 11px; /* 11pt */
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-label {
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-  color: #333;
-  font-size: 0.6875rem; /* 11pt */
-}
-
-.curl-input {
-  padding: 0.5rem;
-  font-size: 0.6875rem; /* 11pt */
-  font-family: monospace;
-  resize: vertical;
-  width: 100%;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-}
-
-.numeric-input {
-  padding: 0.5rem;
-  font-size: 0.6875rem; /* 11pt */
-  width: 100px;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-}
-
-.form-display {
-  display: flex;
+.monitoring-form label {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 8px;
+  margin-bottom: 12px;
   align-items: center;
-  gap: 0.5rem;
+  text-align: right; /* Right-justify labels */
+  font-size: 11px;
 }
 
-.form-unit {
-  font-size: 0.6875rem; /* 11pt */
-  color: #666;
+.monitoring-form input {
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 11px;
 }
 
-.start-button {
-  padding: 0.5rem 1rem;
-  background-color: #007bff;
+.monitoring-form input[type="text"] {
+  min-height: 60px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  resize: vertical;
+  vertical-align: top; /* Start text at top */
+  text-align: left; /* Left-align for top-right, adjust if needed */
+}
+
+.monitoring-form button {
+  background: #007bff;
   color: white;
+  padding: 8px 16px;
   border: none;
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
-  font-weight: bold;
-  font-size: 0.6875rem; /* 11pt */
+  font-size: 11px;
+  transition: background 0.3s;
 }
 
-.start-button:hover {
-  background-color: #0056b3;
+.monitoring-form button:hover {
+  background: #0056b3;
 }
