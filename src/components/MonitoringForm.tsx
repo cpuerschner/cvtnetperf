@@ -102,8 +102,7 @@ const MonitoringForm: React.FC<MonitoringFormProps> = ({
     <form onSubmit={handleSubmit} className="monitoring-form">
       <label>
         cURL Command:
-        <input
-          type="text"
+        <textarea
           value={formCurl}
           onChange={(e) => setFormCurl(e.target.value)}
           placeholder="Enter cURL command"
@@ -142,7 +141,9 @@ const MonitoringForm: React.FC<MonitoringFormProps> = ({
           required
         />
       </label>
-      <button type="submit">Start Monitoring</button>
+      <div className="button-container">
+        <button type="submit" className="start-button">Start Monitoring</button>
+      </div>
     </form>
   );
 };

@@ -36,6 +36,15 @@ const EventNetworkPerf: React.FC = () => {
   });
   const monitoringIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const monitoringTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const monitoringDataRef = useRef<{
+    localHeartbeats: Heartbeat[];
+    monitorBeganAt: string;
+    formCurl: string;
+    requestConfig: RequestConfig;
+    interval: number;
+    duration: number;
+    userInitiated: boolean; // New flag
+  } | null>(null);
   const targetTime = 0.1;
 
   const latencySegments = React.useMemo<Segment[]>(() => [
@@ -151,7 +160,7 @@ const EventNetworkPerf: React.FC = () => {
 
     const measure = async () => {
       const elapsedSeconds = (Date.now() - startTime) / 1000;
-      console.log('Measure called, elapsed:', elapsedSeconds.toFixed(1), 'isMonitoring (state):', isMonitoring, 'isMonitoringLocal:', isMonitoringLocal);
+      console.log('Measure called, elapsed:', elapsedSeconds.toFixed(1), 'isMonitoringLocal:', isMonitoringLocal);
       if (elapsedSeconds > duration || !isMonitoringLocal) {
         console.log('Measure stopped: elapsed > duration or not monitoring');
         return;
@@ -163,6 +172,15 @@ const EventNetworkPerf: React.FC = () => {
       localHeartbeats.push(heartbeat);
       setHeartbeats([...localHeartbeats]);
       console.log('Heartbeats state updated, count:', localHeartbeats.length);
+      monitoringDataRef.current = {
+        localHeartbeats: [...localHeartbeats],
+        monitorBeganAt,
+        formCurl,
+        requestConfig: cleanedRequestConfig,
+        interval,
+        duration,
+        userInitiated: monitoringDataRef.current?.userInitiated ?? false, // Preserve userInitiated
+      };
       setStatus(`
         <div>Start Time: ${monitorBeganAt}</div>
         <div className="timestamp">Last measured: ${heartbeat.timestamp}</div>
@@ -176,7 +194,7 @@ const EventNetworkPerf: React.FC = () => {
       `);
     };
 
-    console.log('Starting monitoring, initial isMonitoring:', isMonitoring);
+    console.log('Starting monitoring...');
     measure().catch(error => console.error('Initial measure failed:', error));
     monitoringIntervalRef.current = setInterval(measure, interval * 1000);
     monitoringTimeoutRef.current = setTimeout(() => {
@@ -185,13 +203,15 @@ const EventNetworkPerf: React.FC = () => {
       stopMonitoring(localHeartbeats, monitorBeganAt, formCurl, cleanedRequestConfig, interval, duration, false);
     }, duration * 1000);
 
-    const stopManually = () => {
-      if (!isMonitoring) return;
-      console.log('Manual stop triggered');
-      isMonitoringLocal = false;
-      stopMonitoring(localHeartbeats, monitorBeganAt, formCurl, cleanedRequestConfig, interval, duration, true);
+    monitoringDataRef.current = {
+      localHeartbeats: [],
+      monitorBeganAt,
+      formCurl,
+      requestConfig: cleanedRequestConfig,
+      interval,
+      duration,
+      userInitiated: false, // Default to false
     };
-    (startMonitoring as any).stopManually = stopManually;
   };
 
   const stopMonitoring = (
@@ -227,6 +247,10 @@ const EventNetworkPerf: React.FC = () => {
       <div>Average Latency: <span style="color: ${latencyColor}">${avgLatency.toFixed(2)} ms</span></div>
       <div>Average Bandwidth: <span style="color: ${bandwidthColor}">${avgBandwidth.toFixed(2)} KB/s</span></div>
     `);
+
+    if (monitoringDataRef.current) {
+      monitoringDataRef.current.userInitiated = userInitiated; // Update ref
+    }
   };
 
   const measureApiResponseTime = async (
@@ -300,8 +324,13 @@ const EventNetworkPerf: React.FC = () => {
   };
 
   const handleStopMonitoring = () => {
-    if (!isMonitoring) return;
-    (startMonitoring as any).stopManually();
+    if (!isMonitoring || !monitoringDataRef.current) return;
+    console.log('Manual stop triggered');
+    const { localHeartbeats, monitorBeganAt, formCurl, requestConfig, interval, duration } = monitoringDataRef.current;
+    stopMonitoring(localHeartbeats, monitorBeganAt, formCurl, requestConfig, interval, duration, true);
+    if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
+    if (monitoringTimeoutRef.current) clearTimeout(monitoringTimeoutRef.current);
+    setIsMonitoring(false);
   };
 
   const exportHeartbeatsToFile = () => {
@@ -333,7 +362,7 @@ const EventNetworkPerf: React.FC = () => {
       },
       statusInfo: {
         ...statusInfo,
-        stoppedByUser: status.includes('Monitoring stopped by user') ? 'true' : 'false',
+        stoppedByUser: monitoringDataRef.current?.userInitiated ? 'true' : 'false', // Use ref flag
       },
     };
 
@@ -407,7 +436,7 @@ const EventNetworkPerf: React.FC = () => {
               heartbeats={heartbeats}
               latencySegments={latencySegments}
               bandwidthSegments={bandwidthSegments}
-              onExport={() => {}} // Empty prop since button moved
+              onExport={() => {}}
             />
           </div>
         )}
